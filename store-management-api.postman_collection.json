@@ -1,0 +1,1653 @@
+{
+  "info": {
+    "name": "Store Management API",
+    "description": "API collection for Store Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "store_id",
+      "value": "your_store_id_here",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signin",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signin"]
+            }
+          }
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"{{token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\": \"your_refresh_token\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Onboarding Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/onboarding-status",
+              "host": ["{{base_url}}"],
+              "path": ["users", "onboarding-status"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"phone\": \"1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stores",
+      "item": [
+        {
+          "name": "Create Store",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Store\",\n    \"address\": \"Store Address\",\n    \"phone\": \"1234567890\",\n    \"email\": \"store@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores",
+              "host": ["{{base_url}}"],
+              "path": ["stores"]
+            }
+          }
+        },
+        {
+          "name": "Get All Stores",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores",
+              "host": ["{{base_url}}"],
+              "path": ["stores"]
+            }
+          }
+        },
+        {
+          "name": "Get Store by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Store",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Store Name\",\n    \"address\": \"New Address\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Store",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Set Primary Store",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/primary",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "primary"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Search Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories/search",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories", "search"]
+            }
+          }
+        },
+        {
+          "name": "Filter Categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"filters\": {\n        \"name\": \"Category Name\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories/filterquery",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories", "filterquery"]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Category\",\n    \"description\": \"Category Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Get Category by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Category\",\n    \"description\": \"Updated Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Brands",
+      "item": [
+        {
+          "name": "Search Brands",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands/search",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands", "search"]
+            }
+          }
+        },
+        {
+          "name": "Create Brand",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Brand\",\n    \"description\": \"Brand Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands"]
+            }
+          }
+        },
+        {
+          "name": "Get All Brands",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands"]
+            }
+          }
+        },
+        {
+          "name": "Get Brand by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Brand",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Brand\",\n    \"description\": \"Updated Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Brand",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Filter Brands",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"filters\": {\n        \"name\": \"Brand Name\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/brands/filterquery",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "brands", "filterquery"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products/search",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products", "search"]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Product\",\n    \"description\": \"Product Description\",\n    \"categoryId\": 1,\n    \"brandId\": 1,\n    \"unitId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products"]
+            }
+          }
+        },
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products"]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products", "{{product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Product\",\n    \"description\": \"Updated Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products", "{{product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "products", "{{product_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Variant Taxes",
+      "item": [
+        {
+          "name": "Create Variant Tax",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"VAT\",\n    \"rate\": 20,\n    \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-taxes",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-taxes"]
+            }
+          }
+        },
+        {
+          "name": "Get All Variant Taxes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-taxes",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-taxes"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Tax by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-taxes/{{tax_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-taxes", "{{tax_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Variant Tax",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rate\": 25,\n    \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-taxes/{{tax_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-taxes", "{{tax_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Variant Tax",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-taxes/{{tax_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-taxes", "{{tax_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Variant Prices",
+      "item": [
+        {
+          "name": "Create Variant Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": 99.99,\n    \"startDate\": \"2024-04-18T00:00:00Z\",\n    \"endDate\": \"2024-12-31T23:59:59Z\",\n    \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-prices",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-prices"]
+            }
+          }
+        },
+        {
+          "name": "Get All Variant Prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-prices",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-prices"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Price by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-prices/{{price_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-prices", "{{price_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Variant Price",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"price\": 89.99,\n    \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-prices/{{price_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-prices", "{{price_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Variant Price",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-prices/{{price_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-prices", "{{price_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Variant Promotions",
+      "item": [
+        {
+          "name": "Create Variant Promotion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Summer Sale\",\n    \"discountPercentage\": 20,\n    \"startDate\": \"2024-06-01T00:00:00Z\",\n    \"endDate\": \"2024-08-31T23:59:59Z\",\n    \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-promotions",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-promotions"]
+            }
+          }
+        },
+        {
+          "name": "Get All Variant Promotions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-promotions",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-promotions"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Promotion by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-promotions/{{promotion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-promotions", "{{promotion_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Variant Promotion",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"discountPercentage\": 25,\n    \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-promotions/{{promotion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-promotions", "{{promotion_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Variant Promotion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variant-promotions/{{promotion_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variant-promotions", "{{promotion_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Create Inventory Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"productId\": 1,\n    \"quantity\": 100,\n    \"expiryDate\": \"2024-12-31\",\n    \"batchNumber\": \"BATCH001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/inventory-batches",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "inventory-batches"]
+            }
+          }
+        },
+        {
+          "name": "Get All Inventory Batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/inventory-batches",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "inventory-batches"]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Batch by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/inventory-batches/{{batch_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "inventory-batches", "{{batch_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Inventory Batch",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"quantity\": 150,\n    \"expiryDate\": \"2025-01-31\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/inventory-batches/{{batch_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "inventory-batches", "{{batch_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Inventory Batch",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/inventory-batches/{{batch_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "inventory-batches", "{{batch_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customerName\": \"John Doe\",\n    \"items\": [\n        {\n            \"productId\": 1,\n            \"quantity\": 2,\n            \"price\": 99.99\n        }\n    ],\n    \"totalAmount\": 199.98\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "orders", "{{order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"COMPLETED\",\n    \"notes\": \"Order completed successfully\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "orders", "{{order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "orders", "{{order_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Financial",
+      "item": [
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"orderId\": 1,\n    \"amount\": 199.98,\n    \"dueDate\": \"2024-05-18\",\n    \"notes\": \"Invoice for order #1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "Get All Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "Get Invoice by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/invoices/{{invoice_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "invoices", "{{invoice_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Invoice",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"PAID\",\n    \"paymentDate\": \"2024-04-18\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/invoices/{{invoice_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "invoices", "{{invoice_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Invoice",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/invoices/{{invoice_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "invoices", "{{invoice_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Voucher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"invoiceId\": 1,\n    \"amount\": 199.98,\n    \"paymentDate\": \"2024-04-18\",\n    \"paymentMethod\": \"CASH\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/payment-vouchers",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "payment-vouchers"]
+            }
+          }
+        },
+        {
+          "name": "Get All Payment Vouchers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/payment-vouchers",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "payment-vouchers"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Voucher by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/payment-vouchers/{{voucher_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "payment-vouchers", "{{voucher_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Payment Voucher",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"VERIFIED\",\n    \"notes\": \"Payment verified\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/payment-vouchers/{{voucher_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "payment-vouchers", "{{voucher_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Payment Voucher",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/payment-vouchers/{{voucher_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "payment-vouchers", "{{voucher_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Variants",
+      "item": [
+        {
+          "name": "Create Variant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Variant Name\",\n    \"sku\": \"SKU123\",\n    \"barcode\": \"BARCODE123\",\n    \"price\": 99.99,\n    \"cost\": 50.00,\n    \"description\": \"Variant Description\",\n    \"productId\": \"product_id_here\",\n    \"taxIds\": [\"tax_id_1\", \"tax_id_2\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants"]
+            }
+          }
+        },
+        {
+          "name": "Get All Variants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Variant",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Variant Name\",\n    \"price\": 89.99,\n    \"description\": \"Updated Description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Search Variants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/search",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "search"]
+            }
+          }
+        },
+        {
+          "name": "Filter Variants",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"filters\": {\n        \"name\": \"Variant Name\",\n        \"sku\": \"SKU123\",\n        \"barcode\": \"BARCODE123\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/filterquery",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "filterquery"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Taxes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}/taxes",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}", "taxes"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Prices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}/prices",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}", "prices"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Promotions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}/promotions",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}", "promotions"]
+            }
+          }
+        },
+        {
+          "name": "Get Variant Inventory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}/inventory",
+              "host": ["{{base_url}}"],
+              "path": ["stores", "{{store_id}}", "variants", "{{variant_id}}", "inventory"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 

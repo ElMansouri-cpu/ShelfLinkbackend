@@ -1,0 +1,110 @@
+// import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe, ParseIntPipe, Query, Req } from '@nestjs/common';
+// import { CategoriesService } from './categories.service';
+// import { CreateCategoryDto } from './dto/create-category.dto';
+// import { UpdateCategoryDto } from './dto/update-category.dto';
+// import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+// import { User } from '../auth/decorators/user.decorator';
+// import { QueryDto } from 'src/common/dto/query.dto';
+// import { Category } from './entities/category.entity';
+
+// @Controller('stores/:storeId/categories')
+// @UseGuards(SupabaseAuthGuard)
+// export class CategoriesController {
+//   constructor(private readonly categoriesService: CategoriesService) {}
+//   @Get('search')
+//   textSearch(
+//     @Param('storeId') storeId: string,
+//     @Query('q') q: string,
+//     @User() user,
+
+//     @Req() req: Request, // assuming userId is stored in request
+//   ): Promise<Category[]> {
+//     const userId = user.id;
+//     return this.categoriesService.textSearchCategories(storeId, q, userId);
+//   }
+//   @Post()
+//   create(
+//     @Param('storeId', new ParseUUIDPipe()) storeId: string,
+//     @Body() createCategoryDto: CreateCategoryDto,
+//     @User() user,
+//   ) {
+//     if (createCategoryDto.storeId !== storeId) {
+//       createCategoryDto.storeId = storeId;
+//     }
+//     return this.categoriesService.create(createCategoryDto, user.id);
+//   }
+
+//   @Get()
+//   findAll(
+//     @Param('storeId', new ParseUUIDPipe()) storeId: string,
+//     @User() user,
+//   ) {
+//     return this.categoriesService.findAll(storeId, user.id);
+//   }
+
+//   @Get(':id')
+//   findOne(
+//     @Param('storeId', new ParseUUIDPipe()) storeId: string,
+//     @Param('id', ParseIntPipe) id: number,
+//     @User() user,
+//   ) {
+//     return this.categoriesService.findOne(id, storeId, user.id);
+//   }
+
+//   @Patch(':id')
+//   update(
+//     @Param('storeId', new ParseUUIDPipe()) storeId: string,
+//     @Param('id', ParseIntPipe) id: number,
+//     @Body() updateCategoryDto: UpdateCategoryDto,
+//     @User() user,
+//   ) {
+//     if (updateCategoryDto.storeId && updateCategoryDto.storeId !== storeId) {
+//       updateCategoryDto.storeId = storeId;
+//     }
+//     return this.categoriesService.update(id, updateCategoryDto, storeId, user.id);
+//   }
+
+//   @Delete(':id')
+//   remove(
+//     @Param('storeId', new ParseUUIDPipe()) storeId: string,
+//     @Param('id', ParseIntPipe) id: number,
+//     @User() user,
+//   ) {
+//     return this.categoriesService.remove(id, storeId, user.id);
+//   }
+
+//   @Post('filterquery')
+//   queryItems(@Body() queryDto: QueryDto) {
+//     return this.categoriesService.queryCategories(queryDto);
+//   }
+
+
+  
+// } 
+
+
+// src/categories/categories.controller.ts
+import { Controller, Get, Param } from '@nestjs/common';
+import { CategoriesService } from './categories.service';
+import { StoreCrudController } from 'src/common/controllers/store-crud.controller';
+import { Category } from './entities/category.entity';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+
+@Controller('stores/:storeId/categories')
+export class CategoriesController extends StoreCrudController<
+  Category,
+  CreateCategoryDto,
+  UpdateCategoryDto
+> {
+  constructor(protected readonly service: CategoriesService) {
+    super(service);
+  }
+  @Get(':id/products')
+  getProducts(@Param('id') id: string) {
+    return this.service.getProducts(id);
+  }
+  
+
+  // …you still can add or override any extra endpoints here.
+}
