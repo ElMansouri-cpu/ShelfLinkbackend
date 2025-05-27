@@ -30,7 +30,7 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 
 # Expose the application port
-EXPOSE 3000
+EXPOSE 1919
 
 # Start the application
 CMD ["npm", "run", "start:prod"] 
