@@ -6,31 +6,32 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "1919:1919"
+      - "${PORT}:1919"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/nestjs
-    depends_on:
-      - db
+      - NODE_ENV
+      - DATABASE_URL
+      - SUPABASE_URL
+      - SUPABASE_KEY
+      - SUPABASE_JWT_SECRET
+      - JWT_SECRET
+      - JWT_EXPIRES_IN
+      - FRONTEND_URL
+      - PORT
+    env_file:
+      - .env
+    restart: unless-stopped
     networks:
       - app-network
-
-  db:
-    image: postgres:15-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=nestjs
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-volumes:
-  postgres_data:
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:1919/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   app-network:
-    driver: bridge 
+    driver: bridge

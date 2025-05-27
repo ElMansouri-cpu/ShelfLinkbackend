@@ -3,10 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
 # Copy source code
@@ -20,17 +18,30 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Install wget for healthcheck
+RUN apk add --no-cache wget
 
-# Install production dependencies only
+# Set environment to production before installing dependencies
+ENV NODE_ENV=production
+
+# Copy package files and install only production dependencies
+COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy built application from builder stage
+# Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Expose the application port
+# Optional: Copy .env if your app uses it at runtime (remove if not needed)
+# COPY .env .env
+
+# Create a non-root user and set ownership
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /app
+
+USER appuser
+
+# Expose the port your app listens on
 EXPOSE 1919
 
-# Start the application
-CMD ["npm", "run", "start:prod"] 
+# Start the app directly with node (faster than npm run)
+CMD ["node", "dist/main.js"]

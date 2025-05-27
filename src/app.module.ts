@@ -57,6 +57,9 @@ import { Unit } from './unit/entities/unit.entity';
         const dbConfig: PostgresConnectionOptions = {
           type: 'postgres',
           host: url.hostname,
+          ssl: {
+            rejectUnauthorized: false,
+          },
           port: parseInt(url.port),
           username: url.username,
           password: url.password,
@@ -89,10 +92,9 @@ import { Unit } from './unit/entities/unit.entity';
             PaymentVoucher,
             Unit,
           ],
-          synchronize: true,
         };
 
-  
+        
 
         return dbConfig;
       },
