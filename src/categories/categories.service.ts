@@ -190,7 +190,7 @@
 
 
 // src/categories/categories.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { StoreCrudService } from 'src/common/services/store-crud.service';
 import { Category } from './entities/category.entity';
@@ -212,22 +212,18 @@ export class CategoriesService extends StoreCrudService<Category> {
 
   
   async getProducts(id: string) {
-    const category = await this.repo.findOne({ 
-      where: { id: Number(id) } as any, 
-      relations: ['variants'],
-      select: {
-        variants: {
-          id: true,
-       
-          isActive: true
-        }
-      }
-    });
-    return category?.variants?.filter(variant => variant.isActive) || [];
+    const category = await this.repo
+      .createQueryBuilder('category')
+      .leftJoinAndSelect('category.variants', 'variant', 'variant.isActive = :isActive', { isActive: true })
+      .where('category.id = :id', { id: Number(id) })
+      .getOne();
+  
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+  
+    return category.variants;
   }
 
-  // any extra hooks (e.g. productsCount, parent‐checks)... 
   // you can still override create/update if you need.
-
-
 }
