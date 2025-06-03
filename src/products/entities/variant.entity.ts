@@ -2,12 +2,6 @@ import { Entity, Column, ManyToOne, ManyToMany, JoinTable, OneToMany, JoinColumn
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { Tax } from './tax.entity';
-import { VariantSpecialPrice } from './variant-special-price.entity';
-import { VariantPromotion } from './variant-promotion.entity';
-import { InventoryBatch } from '../../inventory/entities/inventory-batch.entity';
-import { StockTransfer } from '../../inventory/entities/stock-transfer.entity';
-import { Transaction } from '../../inventory/entities/transaction.entity';
-import { Product } from './product.entity';
 import { Provider } from '../../providers/entities/provider.entity';
 import { Brand } from 'src/brands/entities/brand.entity';
 import { Category } from 'src/categories/entities/category.entity';
@@ -103,18 +97,4 @@ export class Variant extends BaseEntity {
 
 
 
-  @OneToMany(() => VariantSpecialPrice, (price) => price.variant)
-  specialPrices: VariantSpecialPrice[];
-
-  @OneToMany(() => VariantPromotion, (promotion) => promotion.variant)
-  promotions: VariantPromotion[];
-
-  @OneToMany(() => InventoryBatch, ib => ib.variant)
-  batches: InventoryBatch[];
-
-  @OneToMany(() => StockTransfer, st => st.variant)
-  stockTransfers: StockTransfer[];
-
-  @OneToMany(() => Transaction, tx => tx.variant)
-  transactions: Transaction[];
 } 

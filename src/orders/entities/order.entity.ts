@@ -2,9 +2,6 @@ import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { OrderItem } from './order-item.entity';
-import { OrderPayment } from './order-payment.entity';
-import { OrderShipment } from './order-shipment.entity';
-import { OrderReturn } from './order-return.entity';
 import { User } from 'src/users/entities/user.entity';
 
 export enum Status {

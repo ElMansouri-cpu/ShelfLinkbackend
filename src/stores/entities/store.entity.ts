@@ -3,9 +3,6 @@ import { User } from '../../users/entities/user.entity';
 import { Category } from '../../categories/entities/category.entity';
 import { Brand } from '../../brands/entities/brand.entity';
 import { Variant } from '../../products/entities/variant.entity';
-import { InventoryBatch } from '../../inventory/entities/inventory-batch.entity';
-import { StockTransfer } from '../../inventory/entities/stock-transfer.entity';
-import { Transaction } from '../../inventory/entities/transaction.entity';
 
 @Entity('stores')
 export class Store {
@@ -69,17 +66,8 @@ export class Store {
   @OneToMany(() => Variant, variant => variant.store)
   variants: Variant[];
 
-  @OneToMany(() => InventoryBatch, batch => batch.store)
-  batches: InventoryBatch[];
 
-  @OneToMany(() => StockTransfer, transfer => transfer.sourceStore)
-  outgoingTransfers: StockTransfer[];
 
-  @OneToMany(() => StockTransfer, transfer => transfer.destinationStore)
-  incomingTransfers: StockTransfer[];
-
-  @OneToMany(() => Transaction, transaction => transaction.store)
-  transactions: Transaction[];
 
   @CreateDateColumn()
   createdAt: Date;
