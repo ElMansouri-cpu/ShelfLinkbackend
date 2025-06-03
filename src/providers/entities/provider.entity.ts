@@ -1,5 +1,4 @@
 import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { PurchaseOrder } from '../../orders/entities/purchase-order.entity';
 
 @Entity('providers')
 export class Provider {
@@ -39,6 +38,5 @@ export class Provider {
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
-  @OneToMany(() => PurchaseOrder, po => po.provider)
-  purchaseOrders: PurchaseOrder[];
+
 } 
