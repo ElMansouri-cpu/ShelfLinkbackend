@@ -18,10 +18,15 @@ export interface SearchFilters {
 }
 
 export interface SearchResult<T> {
-  hits: T[];
-  total: number;
-  page: number;
-  limit: number;
+  data: T[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
 }
 
 @Injectable()
@@ -143,10 +148,15 @@ export abstract class BaseSearchService<T extends SearchableEntity> {
       : response.hits.total?.value || 0;
 
     return {
-      hits: response.hits.hits.map((hit: any) => hit._source),
-      total,
-      page: Number(page),
-      limit: Number(limit),
+      data: response.hits.hits.map((hit: any) => hit._source),
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+        hasNextPage: Number(page) < Math.ceil(total / Number(limit)),
+        hasPreviousPage: Number(page) > 1,
+      },
     };
   }
 

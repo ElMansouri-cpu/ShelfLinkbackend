@@ -260,11 +260,30 @@ export class VariantSearchService {
           match_all: {},
         };
   
-    return this.esService.search({
+    const response = await this.esService.search({
       index: this.index,
       from,
       size: Number(limit),
       query: queryBody,
     });
+
+    // Transform to simplified response format
+    const total = typeof response.hits.total === 'number' 
+      ? response.hits.total 
+      : response.hits.total?.value || 0;
+
+    const totalPages = Math.ceil(total / Number(limit));
+
+    return {
+      data: response.hits.hits.map((hit: any) => hit._source),
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages,
+        hasNextPage: Number(page) < totalPages,
+        hasPreviousPage: Number(page) > 1,
+      },
+    };
   }
 }
