@@ -1,6 +1,6 @@
 # Store Management API Backend
 
-A comprehensive NestJS-based backend API for multi-tenant store management with advanced search capabilities powered by Elasticsearch.
+A comprehensive NestJS-based backend API for multi-tenant store management with advanced search capabilities powered by Elasticsearch and performance optimization through Redis caching.
 
 ## 🚀 Features
 
@@ -17,6 +17,7 @@ A comprehensive NestJS-based backend API for multi-tenant store management with 
 - **TypeScript**: Full type safety throughout the application
 - **PostgreSQL**: Robust relational database with TypeORM
 - **Elasticsearch**: Advanced search capabilities with auto-indexing
+- **🆕 Redis Caching**: High-performance caching for improved response times
 - **Docker Support**: Containerized deployment ready
 - **Real-time Updates**: WebSocket support for live order updates
 - **API Documentation**: Swagger/OpenAPI documentation
@@ -27,8 +28,12 @@ A comprehensive NestJS-based backend API for multi-tenant store management with 
 - **Centralized Configuration**: Joi-validated environment configuration with type safety
 - **Comprehensive Error Handling**: Global exception filters for HTTP, Database, and Elasticsearch errors
 - **Security Enhancements**: Helmet security headers, rate limiting, and environment-based CORS
-- **Health Monitoring**: Real-time health checks for database and Elasticsearch connectivity
+- **Health Monitoring**: Real-time health checks for database, Elasticsearch, and Redis connectivity
 - **Production-Ready Setup**: Graceful shutdown, structured logging, and enhanced validation
+
+### 🚀 Phase 2 Progress (Current)
+- **Redis Infrastructure**: Isolated Redis setup with accurate health monitoring
+- **Caching Foundation**: Redis integration ready for performance optimization strategies
 
 ## 🏗️ Architecture
 
@@ -172,6 +177,7 @@ npm install
 
 3. **Start Elasticsearch (using Docker)**
 ```bash
+# Development mode
 docker run -d \
   --name elasticsearch \
   -p 9200:9200 \
