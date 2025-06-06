@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import configuration, { validateConfig } from './configuration';
+import configuration from './configuration';
 import { AppConfigService } from './config.service';
 
 @Global()
@@ -9,7 +9,6 @@ import { AppConfigService } from './config.service';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      validate: validateConfig,
       validationOptions: {
         abortEarly: false,
       },

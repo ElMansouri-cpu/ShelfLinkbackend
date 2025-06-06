@@ -19,4 +19,9 @@ export class HealthController {
   async getElasticsearchHealth() {
     return this.healthService.checkElasticsearch();
   }
+
+  @Get('redis')
+  async getRedisHealth() {
+    return this.healthService.checkRedis();
+  }
 } 
