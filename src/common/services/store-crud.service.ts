@@ -11,7 +11,6 @@ export abstract class StoreCrudService<T extends ObjectLiteral> extends BaseCrud
    * Sub‐classes *must* override these:
    */
   protected abstract readonly alias: string;
-  protected abstract readonly searchColumns: (keyof T)[];
 
   constructor(
     protected readonly repo: Repository<T>,
@@ -65,27 +64,6 @@ export abstract class StoreCrudService<T extends ObjectLiteral> extends BaseCrud
     const userId = (whereExtra as any).userId;
     await this.verify(storeId, userId);
     return super.remove(id, whereExtra);
-  }
-
-  // ——————————————————————————————————————————
-  // new: text search
-  // ——————————————————————————————————————————
-
-  async search(storeId: string, search: string, userId: string): Promise<T[]> {
-    await this.verify(storeId, userId);
-
-    const qb = this.repo.createQueryBuilder(this.alias)
-      .where(`${this.alias}.storeId = :storeId`, { storeId });
-
-    if (search?.trim()) {
-      const term = `%${search.trim()}%`;
-      const or = this.searchColumns
-        .map(col => `${this.alias}.${String(col)} ILIKE :term`)
-        .join(' OR ');
-      qb.andWhere(`(${or})`, { term });
-    }
-
-    return qb.getMany();
   }
 
   // ——————————————————————————————————————————

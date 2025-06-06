@@ -1,0 +1,1227 @@
+{
+	"info": {
+		"name": "Store Management API - Complete Collection",
+		"description": "Comprehensive API collection for the Store Management Backend with Fastify, Enterprise Caching, and Elasticsearch",
+		"version": "2.0.0",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:1919",
+			"type": "string"
+		},
+		{
+			"key": "store_id",
+			"value": "cb5fa29f-f7ac-4f72-9372-64da5d260037",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Sign In",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.access_token) {",
+									"        pm.collectionVariables.set('jwt_token', jsonData.access_token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/signin",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "signin"]
+						}
+					}
+				},
+				{
+					"name": "Verify Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{jwt_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/verify",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "verify"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "refresh"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "❤️ Health & Monitoring",
+			"item": [
+				{
+					"name": "Overall Health Check",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					}
+				},
+				{
+					"name": "Database Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/health/database",
+							"host": ["{{base_url}}"],
+							"path": ["health", "database"]
+						}
+					}
+				},
+				{
+					"name": "Elasticsearch Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/health/elasticsearch",
+							"host": ["{{base_url}}"],
+							"path": ["health", "elasticsearch"]
+						}
+					}
+				},
+				{
+					"name": "Redis Health",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/health/redis",
+							"host": ["{{base_url}}"],
+							"path": ["health", "redis"]
+						}
+					}
+				},
+				{
+					"name": "Application Metrics",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/monitoring/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["monitoring", "metrics"]
+						}
+					}
+				},
+				{
+					"name": "Request Analytics",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/monitoring/requests",
+							"host": ["{{base_url}}"],
+							"path": ["monitoring", "requests"]
+						}
+					}
+				},
+				{
+					"name": "Error Tracking",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/monitoring/errors",
+							"host": ["{{base_url}}"],
+							"path": ["monitoring", "errors"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🚀 Cache Management",
+			"item": [
+				{
+					"name": "Cache Metrics",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cache/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "metrics"]
+						}
+					}
+				},
+				{
+					"name": "Cache Performance Analysis",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cache/performance",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "performance"]
+						}
+					}
+				},
+				{
+					"name": "Cache Trends",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cache/trends",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "trends"]
+						}
+					}
+				},
+				{
+					"name": "Cache Alerts",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/cache/alerts",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "alerts"]
+						}
+					}
+				},
+				{
+					"name": "Clear Cache by Pattern",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/cache/pattern/user:*",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "pattern", "user:*"]
+						}
+					}
+				},
+				{
+					"name": "Clear User Cache",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/cache/user/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "user", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Clear Store Cache",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/cache/store/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "store", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Warm Cache",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patterns\": [\"user:*\", \"store:*\", \"search:*\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/cache/warm",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "warm"]
+						}
+					}
+				},
+				{
+					"name": "Optimize Cache Performance",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/cache/optimize",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "optimize"]
+						}
+					}
+				},
+				{
+					"name": "Clear All Cache",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/cache/all",
+							"host": ["{{base_url}}"],
+							"path": ["cache", "all"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "👤 Users",
+			"item": [
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users/profile",
+							"host": ["{{base_url}}"],
+							"path": ["users", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"newusername\",\n  \"phone\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/profile",
+							"host": ["{{base_url}}"],
+							"path": ["users", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Get Onboarding Status",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/users/onboarding-status",
+							"host": ["{{base_url}}"],
+							"path": ["users", "onboarding-status"]
+						}
+					}
+				},
+				{
+					"name": "Complete Onboarding",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"step\": \"profile_complete\",\n  \"data\": {}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/onboarding",
+							"host": ["{{base_url}}"],
+							"path": ["onboarding"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏪 Stores",
+			"item": [
+				{
+					"name": "Create Store",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Store\",\n  \"description\": \"Store description\",\n  \"address\": \"123 Main St\",\n  \"phone\": \"+1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores",
+							"host": ["{{base_url}}"],
+							"path": ["stores"]
+						}
+					}
+				},
+				{
+					"name": "Get User Stores",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores",
+							"host": ["{{base_url}}"],
+							"path": ["stores"]
+						}
+					}
+				},
+				{
+					"name": "Get Store by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Store",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Store Name\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Store",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Set Primary Store",
+					"request": {
+						"method": "PATCH",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/set-primary",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "set-primary"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📦 Products & Variants",
+			"item": [
+				{
+					"name": "Create Variant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Product Variant\",\n  \"sku\": \"PROD-001\",\n  \"price\": 29.99,\n  \"stock\": 100,\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Variants",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants"]
+						}
+					}
+				},
+				{
+					"name": "🔍 Search Variants (Cached)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants/fetch?q=laptop&page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants", "fetch"],
+							"query": [
+								{
+									"key": "q",
+									"value": "laptop"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Variant by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Variant",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Product\",\n  \"price\": 39.99\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Variant",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/variants/{{variant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "variants", "{{variant_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏷️ Brands",
+			"item": [
+				{
+					"name": "Create Brand",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Apple\",\n  \"description\": \"Technology brand\",\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Brands",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands"]
+						}
+					}
+				},
+				{
+					"name": "🔍 Search Brands (Cached)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands/elasticsearch?q=apple",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands", "elasticsearch"],
+							"query": [
+								{
+									"key": "q",
+									"value": "apple"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Brand by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Brand",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Brand\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Brand",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands/{{brand_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands", "{{brand_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Reindex Brands",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/brands/elasticsearch/reindex",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "brands", "elasticsearch", "reindex"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📂 Categories",
+			"item": [
+				{
+					"name": "Create Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Electronic devices\",\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Categories",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories"]
+						}
+					}
+				},
+				{
+					"name": "🔍 Search Categories (Cached)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/fetch?q=electronics&page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "fetch"],
+							"query": [
+								{
+									"key": "q",
+									"value": "electronics"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "🔍 Elasticsearch Categories",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/elasticsearch?q=electronics",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "elasticsearch"],
+							"query": [
+								{
+									"key": "q",
+									"value": "electronics"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Category by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Category Products",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}/products",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "{{category_id}}", "products"]
+						}
+					}
+				},
+				{
+					"name": "Update Category",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Category\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/categories/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "categories", "{{category_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📋 Orders",
+			"item": [
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"storeId\": \"{{store_id}}\",\n  \"totalAmount\": 99.99,\n  \"status\": \"pending\",\n  \"destination\": \"123 Main St\",\n  \"items\": [\n    {\n      \"variantId\": \"variant-id\",\n      \"quantity\": 2,\n      \"unitPrice\": 49.99,\n      \"totalAmount\": 99.98\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/store/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "store", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Orders",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/store/{{store_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "store", "{{store_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Archived Orders",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/store/{{store_id}}/archived",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "store", "{{store_id}}", "archived"]
+						}
+					}
+				},
+				{
+					"name": "Get Orders by Status",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/store/{{store_id}}/status/pending",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "store", "{{store_id}}", "status", "pending"]
+						}
+					}
+				},
+				{
+					"name": "Update Order Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"shipped\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/orders/{{order_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "{{order_id}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "Get User Orders",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/orders/user/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["orders", "user", "{{user_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🔍 Search",
+			"item": [
+				{
+					"name": "Global Search",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/search/global?q=laptop&entities=variants,brands,categories",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "search", "global"],
+							"query": [
+								{
+									"key": "q",
+									"value": "laptop"
+								},
+								{
+									"key": "entities",
+									"value": "variants,brands,categories"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Reindex Store",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/search/reindex",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "search", "reindex"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏭 Providers",
+			"item": [
+				{
+					"name": "Create Provider",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Provider Name\",\n  \"email\": \"provider@example.com\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"123 Provider St\",\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Providers",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers"]
+						}
+					}
+				},
+				{
+					"name": "Find Nearby Providers",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers/nearby?lat=40.7128&lng=-74.0060&radius=10",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers", "nearby"],
+							"query": [
+								{
+									"key": "lat",
+									"value": "40.7128"
+								},
+								{
+									"key": "lng",
+									"value": "-74.0060"
+								},
+								{
+									"key": "radius",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Provider by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers/{{provider_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers", "{{provider_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Provider",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Provider\",\n  \"phone\": \"+1987654321\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers/{{provider_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers", "{{provider_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Provider",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/providers/{{provider_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "providers", "{{provider_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📏 Units",
+			"item": [
+				{
+					"name": "Create Unit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Kilogram\",\n  \"symbol\": \"kg\",\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/units",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "units"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Units",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/units",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "units"]
+						}
+					}
+				},
+				{
+					"name": "Get Unit by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/units/{{unit_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "units", "{{unit_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Unit",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Unit\",\n  \"symbol\": \"updated\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/units/{{unit_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "units", "{{unit_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Unit",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/units/{{unit_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "units", "{{unit_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💰 Taxes",
+			"item": [
+				{
+					"name": "Create Tax",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"VAT\",\n  \"rate\": 20.0,\n  \"storeId\": \"{{store_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/products/taxes",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "products", "taxes"]
+						}
+					}
+				},
+				{
+					"name": "Get Store Taxes",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/products/taxes",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "products", "taxes"]
+						}
+					}
+				},
+				{
+					"name": "Get Tax by ID",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/products/taxes/{{tax_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "products", "taxes", "{{tax_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Tax",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Tax\",\n  \"rate\": 25.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/products/taxes/{{tax_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "products", "taxes", "{{tax_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Tax",
+					"request": {
+						"method": "DELETE",
+						"url": {
+							"raw": "{{base_url}}/stores/{{store_id}}/products/taxes/{{tax_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["stores", "{{store_id}}", "products", "taxes", "{{tax_id}}"]
+						}
+					}
+				}
+			]
+		}
+	]
+} 

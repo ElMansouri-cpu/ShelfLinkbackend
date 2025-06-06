@@ -13,15 +13,6 @@ import { ParseFloatPipe } from '@nestjs/common';
 export class ProvidersController {
   constructor(private readonly providersService: ProvidersService) {}
 
-  @Get('search')
-  searchProviders(
-    @Param('storeId', new ParseUUIDPipe()) storeId: string,
-    @Query('q') search: string,
-    @User() user,
-  ): Promise<Provider[]> {
-    return this.providersService.textSearchProviders(storeId, search, user.id);
-  }
-
   @Get('nearby')
   findNearby(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,

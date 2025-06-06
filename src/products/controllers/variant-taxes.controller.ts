@@ -15,13 +15,4 @@ export class VariantTaxesController extends StoreCrudController<
   constructor(protected readonly service: VariantTaxesService) {
     super(service);
   }
-
-  @Post('filterquery')
-  async queryTaxes(
-    @Param('storeId') storeId: string,
-    @Body() queryDto: QueryDto,
-    @Headers('user-id') userId: string
-  ) {
-    return this.service.query(storeId, queryDto, userId);
-  }
 } 

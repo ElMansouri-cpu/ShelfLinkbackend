@@ -5,7 +5,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryFailedError, EntityNotFoundError } from 'typeorm';
 import { ErrorResponse } from './http-exception.filter';
 
@@ -15,10 +15,10 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
 
   catch(exception: QueryFailedError | EntityNotFoundError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+    const reply = ctx.getResponse<FastifyReply>();
+    const request = ctx.getRequest<FastifyRequest>();
     
-    const { status, message, error } = this.mapException(exception);
+    const { status, message } = this.mapException(exception);
     
     const errorResponse: ErrorResponse = {
       statusCode: status,
@@ -26,7 +26,7 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       message,
-      error,
+      error: 'DatabaseError',
       requestId: this.generateRequestId(),
     };
 
@@ -37,13 +37,14 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
         requestId: errorResponse.requestId,
         path: request.url,
         method: request.method,
-        exception: exception.message,
-        query: (exception as any).query,
-        parameters: (exception as any).parameters,
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
+        databaseError: exception.message,
+        stack: exception.stack,
       },
     );
 
-    response.status(status).json(errorResponse);
+    reply.status(status).send(errorResponse);
   }
 
   private mapException(exception: QueryFailedError | EntityNotFoundError) {
@@ -51,53 +52,39 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       return {
         status: HttpStatus.NOT_FOUND,
         message: 'Resource not found',
-        error: 'EntityNotFoundError',
       };
     }
 
-    if (exception instanceof QueryFailedError) {
-      const error = exception as any;
-      
-      // Handle common PostgreSQL errors
-      switch (error.code) {
-        case '23505': // unique_violation
-          return {
-            status: HttpStatus.CONFLICT,
-            message: 'Resource already exists',
-            error: 'UniqueViolationError',
-          };
-        case '23503': // foreign_key_violation
-          return {
-            status: HttpStatus.BAD_REQUEST,
-            message: 'Invalid reference to related resource',
-            error: 'ForeignKeyViolationError',
-          };
-        case '23502': // not_null_violation
-          return {
-            status: HttpStatus.BAD_REQUEST,
-            message: 'Required field is missing',
-            error: 'NotNullViolationError',
-          };
-        case '22001': // string_data_right_truncation
-          return {
-            status: HttpStatus.BAD_REQUEST,
-            message: 'Data too long for field',
-            error: 'DataTooLongError',
-          };
-        default:
-          return {
-            status: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: 'Database operation failed',
-            error: 'QueryFailedError',
-          };
-      }
+    // Handle QueryFailedError
+    const error = exception as QueryFailedError & { code?: string };
+    
+    switch (error.code) {
+      case '23505': // Unique constraint violation
+        return {
+          status: HttpStatus.CONFLICT,
+          message: 'Resource already exists',
+        };
+      case '23503': // Foreign key constraint violation
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Invalid reference to related resource',
+        };
+      case '23502': // Not null constraint violation
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Required field is missing',
+        };
+      case '22001': // String data too long
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Input data exceeds maximum length',
+        };
+      default:
+        return {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Database operation failed',
+        };
     }
-
-    return {
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Database error occurred',
-      error: 'DatabaseError',
-    };
   }
 
   private generateRequestId(): string {

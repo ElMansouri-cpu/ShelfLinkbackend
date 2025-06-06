@@ -5,7 +5,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { ErrorResponse } from './http-exception.filter';
 
 // Elasticsearch error types
@@ -26,8 +26,8 @@ export class ElasticsearchExceptionFilter implements ExceptionFilter {
 
   catch(exception: ElasticsearchError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+    const reply = ctx.getResponse<FastifyReply>();
+    const request = ctx.getRequest<FastifyRequest>();
     
     const { status, message } = this.mapException(exception);
     
@@ -48,13 +48,15 @@ export class ElasticsearchExceptionFilter implements ExceptionFilter {
         requestId: errorResponse.requestId,
         path: request.url,
         method: request.method,
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
         exception: exception.message,
         statusCode: exception.statusCode,
         body: exception.body,
       },
     );
 
-    response.status(status).json(errorResponse);
+    reply.status(status).send(errorResponse);
   }
 
   private mapException(exception: ElasticsearchError) {

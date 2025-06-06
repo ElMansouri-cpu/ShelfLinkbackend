@@ -23,8 +23,8 @@ export class MetricsInterceptor implements NestInterceptor {
     const requestInfo = {
       method: request.method,
       path: this.sanitizePath(request.route?.path || request.url),
-      userAgent: request.get('user-agent'),
-      ip: request.ip || request.connection.remoteAddress,
+      userAgent: request.headers['user-agent'],
+      ip: request.ip || request.connection?.remoteAddress || request.socket?.remoteAddress,
       userId: request.user?.userId,
       storeId: request.params?.storeId,
     };
