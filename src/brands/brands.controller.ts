@@ -13,22 +13,16 @@ import { Cacheable } from '../cache/decorators';
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
-  @Get('search')
-  searchItems(
-    @Param('storeId', new ParseUUIDPipe()) storeId: string,
-    @Query('q') search: string,
-    @User() user,
-  ): Promise<Brand[]> {
-    return this.brandsService.textSearchBrands(storeId, search, user.id);
-  }
-
   @Get('elasticsearch')
   @Cacheable({
     ttl: 300, // 5 minutes for search results
     keyGenerator: (storeId, query = '', filters = {}, user) => {
-      const { q, ...cleanFilters } = filters;
+      // Ensure we get string values and not objects
+      const queryString = String(query || '');
+      const storeIdString = String(storeId || '');
+      const { q, ...cleanFilters } = filters || {};
       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:brands:${query || 'all'}:filters:${filtersKey}:store:${storeId}`;
+      return `search:brands:${queryString || 'all'}:filters:${filtersKey}:store:${storeIdString}`;
     },
   })
   async elasticSearch(

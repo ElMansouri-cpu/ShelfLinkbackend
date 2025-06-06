@@ -20,15 +20,6 @@ export abstract class StoreCrudController<
     super(service);
   }
 
-  @Get('search')
-  search(
-    @Param('storeId', ParseUUIDPipe) storeId: string,
-    @Query('q') q: string,
-    @UserDec() user: any,
-  ) {
-    return this.service.search(storeId, q, user.id);
-  }
-
   @Post('filterquery')
   query(
     @Param('storeId', ParseUUIDPipe) storeId: string,

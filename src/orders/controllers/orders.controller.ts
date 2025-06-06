@@ -52,11 +52,6 @@ export class OrdersController extends StoreCrudController<
     });
   }
 
-  @Get(':id')
-  async getOrderById(@Param('id') id: string) {
-    return this.service.getOrderById(id);
-  }
-
   @Get('store/:storeId')
   async getOrdersByStoreId(@Param('storeId') storeId: string) {
     return this.service.getOrdersByStoreId(storeId);
@@ -82,11 +77,6 @@ export class OrdersController extends StoreCrudController<
     const orders = await this.service.getOrdersByUserId(userId);
     console.log(orders);
     return orders;
-  }
-
-  @Get('store/:storeId/search')
-  async textSearchOrders(@Param('storeId') storeId: string, @Query('q') q: string) {
-    return this.service.textSearchOrders(storeId, q);
   }
 
   

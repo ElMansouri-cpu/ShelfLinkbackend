@@ -109,15 +109,6 @@ export class CategoriesController extends StoreCrudController<
     super(service);
   }
 
-  @Get('search')
-  searchItems(
-    @Param('storeId', new ParseUUIDPipe()) storeId: string,
-    @Query('q') search: string,
-    @User() user,
-  ): Promise<Category[]> {
-    return this.service.searchCategories(storeId, search);
-  }
-
   @Get('elasticsearch')
   async elasticSearch(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
@@ -133,9 +124,12 @@ export class CategoriesController extends StoreCrudController<
   @Cacheable({
     ttl: 300, // 5 minutes for search results
     keyGenerator: (storeId, q = '', filters = {}) => {
-      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      // Ensure we get string values and not objects
+      const queryString = String(q || '');
+      const storeIdString = String(storeId || '');
+      const { page = 1, limit = 50, ...cleanFilters } = filters || {};
       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:categories:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+      return `search:categories:${queryString || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeIdString}`;
     },
   })
   async fetch(
