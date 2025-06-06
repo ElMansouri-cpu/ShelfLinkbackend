@@ -51,13 +51,25 @@ export class SearchManagerService {
       this.variantSearchService.searchVariants(query, { storeId, limit }),
     ]);
 
+    const defaultResult = { 
+      data: [], 
+      pagination: { 
+        total: 0, 
+        page: 1, 
+        limit, 
+        totalPages: 0, 
+        hasNextPage: false, 
+        hasPreviousPage: false 
+      } 
+    };
+
     return {
-      brands: results[0].status === 'fulfilled' ? results[0].value : { hits: [], total: 0 },
-      categories: results[1].status === 'fulfilled' ? results[1].value : { hits: [], total: 0 },
-      orders: results[2].status === 'fulfilled' ? results[2].value : { hits: [], total: 0 },
-      units: results[3].status === 'fulfilled' ? results[3].value : { hits: [], total: 0 },
-      taxes: results[4].status === 'fulfilled' ? results[4].value : { hits: [], total: 0 },
-      variants: results[5].status === 'fulfilled' ? results[5].value : { hits: [], total: 0 },
+      brands: results[0].status === 'fulfilled' ? results[0].value : defaultResult,
+      categories: results[1].status === 'fulfilled' ? results[1].value : defaultResult,
+      orders: results[2].status === 'fulfilled' ? results[2].value : defaultResult,
+      units: results[3].status === 'fulfilled' ? results[3].value : defaultResult,
+      taxes: results[4].status === 'fulfilled' ? results[4].value : defaultResult,
+      variants: results[5].status === 'fulfilled' ? results[5].value : defaultResult,
     };
   }
 
@@ -131,7 +143,7 @@ export class SearchManagerService {
         brands: [],
         priceRanges: [],
       },
-      total: 0, // Would be populated from actual search results count
+      total: variantResults.pagination.total,
     };
   }
 
