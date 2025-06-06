@@ -143,7 +143,7 @@ export class CacheMonitorService {
   /**
    * Scheduled monitoring task - runs every 15 minutes
    */
-  @Cron(CronExpression.EVERY_15_MINUTES)
+  @Cron('0 */15 * * * *') // Every 15 minutes
   async scheduledMonitoring(): Promise<void> {
     try {
       const metrics = this.cacheService.getMetrics();
