@@ -17,9 +17,28 @@ export interface CacheKeyOptions {
   filters?: Record<string, any>;
 }
 
+export interface CacheMetrics {
+  hits: number;
+  misses: number;
+  sets: number;
+  deletes: number;
+  errors: number;
+  hitRate: number;
+  lastReset: Date;
+}
+
 @Injectable()
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
+  private metrics: CacheMetrics = {
+    hits: 0,
+    misses: 0,
+    sets: 0,
+    deletes: 0,
+    errors: 0,
+    hitRate: 0,
+    lastReset: new Date(),
+  };
 
   constructor(
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -27,11 +46,12 @@ export class CacheService {
   ) {}
 
   /**
-   * Generate a cache key based on provided options
+   * Generate cache key from options
    */
   generateKey(keyOptions: CacheKeyOptions): string {
     const parts: string[] = [];
 
+    // Add base prefix
     if (keyOptions.userId) {
       parts.push(`user:${keyOptions.userId}`);
     }
@@ -41,7 +61,7 @@ export class CacheService {
     }
 
     if (keyOptions.entityType) {
-      parts.push(`entity:${keyOptions.entityType}`);
+      parts.push(`type:${keyOptions.entityType}`);
     }
 
     if (keyOptions.entityId) {
@@ -71,13 +91,18 @@ export class CacheService {
       const value = await this.cacheManager.get<T>(key);
       if (value !== null && value !== undefined) {
         this.logger.debug(`Cache HIT for key: ${key}`);
+        this.metrics.hits++;
+        this.updateHitRate();
         return value;
       } else {
         this.logger.debug(`Cache MISS for key: ${key}`);
+        this.metrics.misses++;
+        this.updateHitRate();
         return undefined;
       }
     } catch (error) {
       this.logger.error(`Cache GET error for key ${key}:`, error);
+      this.metrics.errors++;
       return undefined;
     }
   }
@@ -90,8 +115,10 @@ export class CacheService {
       const ttl = options?.ttl ?? 300; // Default 5 minutes
       await this.cacheManager.set(key, value, ttl * 1000); // Convert to milliseconds
       this.logger.debug(`Cache SET for key: ${key}, TTL: ${ttl}s`);
+      this.metrics.sets++;
     } catch (error) {
       this.logger.error(`Cache SET error for key ${key}:`, error);
+      this.metrics.errors++;
     }
   }
 
@@ -102,8 +129,10 @@ export class CacheService {
     try {
       await this.cacheManager.del(key);
       this.logger.debug(`Cache DELETE for key: ${key}`);
+      this.metrics.deletes++;
     } catch (error) {
       this.logger.error(`Cache DELETE error for key ${key}:`, error);
+      this.metrics.errors++;
     }
   }
 
@@ -119,8 +148,10 @@ export class CacheService {
         this.logger.warn('Cache reset method not available');
       }
       this.logger.warn('Cache RESET - All cache cleared');
+      this.resetMetrics();
     } catch (error) {
       this.logger.error('Cache RESET error:', error);
+      this.metrics.errors++;
     }
   }
 
@@ -144,16 +175,143 @@ export class CacheService {
   }
 
   /**
-   * Invalidate cache patterns (e.g., all cache keys for a specific store)
+   * Enhanced pattern-based cache invalidation
    */
-  async invalidatePattern(pattern: string): Promise<void> {
+  async invalidatePattern(pattern: string): Promise<number> {
     try {
-      // Note: This would require Redis SCAN command for pattern matching
-      // For now, we'll log the pattern for manual cleanup
-      this.logger.warn(`Cache invalidation requested for pattern: ${pattern}`);
-      // TODO: Implement pattern-based cache invalidation
+      this.logger.debug(`Starting cache invalidation for pattern: ${pattern}`);
+      
+      // Try to get the Redis client for SCAN operations
+      const redisClient = this.getRedisClient();
+      
+      if (!redisClient) {
+        this.logger.warn(`Redis client not available for pattern invalidation: ${pattern}`);
+        return 0;
+      }
+
+      let deletedCount = 0;
+      let cursor = '0';
+      
+      do {
+        // Use SCAN to find matching keys
+        const result = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = result[0];
+        const keys = result[1];
+        
+        if (keys.length > 0) {
+          // Delete found keys
+          await redisClient.del(...keys);
+          deletedCount += keys.length;
+          this.logger.debug(`Deleted ${keys.length} keys matching pattern: ${pattern}`);
+        }
+      } while (cursor !== '0');
+      
+      this.logger.log(`Cache invalidation completed for pattern: ${pattern}, deleted ${deletedCount} keys`);
+      this.metrics.deletes += deletedCount;
+      
+      return deletedCount;
     } catch (error) {
       this.logger.error(`Cache invalidation error for pattern ${pattern}:`, error);
+      this.metrics.errors++;
+      return 0;
+    }
+  }
+
+  /**
+   * Get Redis client for advanced operations
+   */
+  private getRedisClient(): any {
+    try {
+      // Access the underlying Redis client
+      const store = (this.cacheManager as any).store;
+      return store?.getClient?.() || store?.client;
+    } catch (error) {
+      this.logger.error('Failed to get Redis client:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Cache warming - preload frequently accessed data
+   */
+  async warmCache<T>(
+    keys: Array<{ key: string; factory: () => Promise<T>; ttl?: number }>,
+  ): Promise<void> {
+    this.logger.log(`Starting cache warming for ${keys.length} keys`);
+    
+    const promises = keys.map(async ({ key, factory, ttl }) => {
+      try {
+        const existing = await this.get(key);
+        if (existing === undefined) {
+          const value = await factory();
+          await this.set(key, value, { ttl: ttl || 300 });
+          this.logger.debug(`Cache warmed for key: ${key}`);
+        }
+      } catch (error) {
+        this.logger.error(`Cache warming failed for key: ${key}`, error);
+      }
+    });
+
+    await Promise.allSettled(promises);
+    this.logger.log('Cache warming completed');
+  }
+
+  /**
+   * Get cache metrics
+   */
+  getMetrics(): CacheMetrics {
+    return { ...this.metrics };
+  }
+
+  /**
+   * Reset cache metrics
+   */
+  resetMetrics(): void {
+    this.metrics = {
+      hits: 0,
+      misses: 0,
+      sets: 0,
+      deletes: 0,
+      errors: 0,
+      hitRate: 0,
+      lastReset: new Date(),
+    };
+  }
+
+  /**
+   * Update hit rate calculation
+   */
+  private updateHitRate(): void {
+    const total = this.metrics.hits + this.metrics.misses;
+    this.metrics.hitRate = total > 0 ? (this.metrics.hits / total) * 100 : 0;
+  }
+
+  /**
+   * Check if a key exists in cache
+   */
+  async exists(key: string): Promise<boolean> {
+    try {
+      const value = await this.cacheManager.get(key);
+      return value !== undefined && value !== null;
+    } catch (error) {
+      this.logger.error(`Cache EXISTS error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get TTL for a key
+   */
+  async getTTL(key: string): Promise<number> {
+    try {
+      const redisClient = this.getRedisClient();
+      if (!redisClient) {
+        return -1;
+      }
+      return await redisClient.ttl(key);
+    } catch (error) {
+      this.logger.error(`Cache TTL error for key ${key}:`, error);
+      return -1;
     }
   }
 
@@ -222,15 +380,70 @@ export class CacheService {
   /**
    * Invalidate all cache for a specific store
    */
-  async invalidateStoreCache(storeId: string): Promise<void> {
-    await this.invalidatePattern(`store:${storeId}*`);
+  async invalidateStoreCache(storeId: string): Promise<number> {
+    return this.invalidatePattern(`store:${storeId}*`);
   }
 
   /**
    * Invalidate all cache for a specific user
    */
-  async invalidateUserCache(userId: string): Promise<void> {
-    await this.invalidatePattern(`user:${userId}*`);
+  async invalidateUserCache(userId: string): Promise<number> {
+    return this.invalidatePattern(`user:${userId}*`);
+  }
+
+  /**
+   * Batch operations for better performance
+   */
+  async mget<T>(keys: string[]): Promise<(T | undefined)[]> {
+    try {
+      const redisClient = this.getRedisClient();
+      if (!redisClient) {
+        // Fallback to individual gets
+        return Promise.all(keys.map(key => this.get<T>(key)));
+      }
+
+      const values = await redisClient.mget(...keys);
+      return values.map((value: any) => {
+        if (value === null || value === undefined) {
+          this.metrics.misses++;
+          return undefined;
+        }
+        this.metrics.hits++;
+        return JSON.parse(value);
+      });
+    } catch (error) {
+      this.logger.error('Cache MGET error:', error);
+      this.metrics.errors++;
+      return keys.map(() => undefined);
+    } finally {
+      this.updateHitRate();
+    }
+  }
+
+  /**
+   * Batch set operations
+   */
+  async mset<T>(items: Array<{ key: string; value: T; ttl?: number }>): Promise<void> {
+    try {
+      const redisClient = this.getRedisClient();
+      if (!redisClient) {
+        // Fallback to individual sets
+        await Promise.all(items.map(item => this.set(item.key, item.value, { ttl: item.ttl })));
+        return;
+      }
+
+      const pipeline = redisClient.pipeline();
+      items.forEach(({ key, value, ttl }) => {
+        pipeline.setex(key, ttl || 300, JSON.stringify(value));
+      });
+      
+      await pipeline.exec();
+      this.metrics.sets += items.length;
+      this.logger.debug(`Cache MSET completed for ${items.length} keys`);
+    } catch (error) {
+      this.logger.error('Cache MSET error:', error);
+      this.metrics.errors++;
+    }
   }
 
   /**

@@ -4,24 +4,12 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
-  SetMetadata,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Reflector } from '@nestjs/core';
-import { CacheService, CacheKeyOptions } from '../cache.service';
-
-export const CACHE_KEY_METADATA = 'cache_key';
-export const CACHE_TTL_METADATA = 'cache_ttl';
-
-export interface CacheConfig {
-  keyOptions?: CacheKeyOptions;
-  ttl?: number;
-  enabled?: boolean;
-}
-
-export const CacheKey = (config: CacheConfig) => 
-  SetMetadata(CACHE_KEY_METADATA, config);
+import { CacheService } from '../cache.service';
+import { CACHEABLE_METADATA, CacheableOptions } from '../decorators/cacheable.decorator';
 
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
@@ -32,72 +20,136 @@ export class CacheInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  async intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Promise<Observable<any>> {
-    const cacheConfig = this.reflector.get<CacheConfig>(
-      CACHE_KEY_METADATA,
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+    const cacheMetadata = this.reflector.get<CacheableOptions & { 
+      methodName: string; 
+      className: string; 
+    }>(
+      CACHEABLE_METADATA,
       context.getHandler(),
     );
 
-    if (!cacheConfig || cacheConfig.enabled === false) {
+    if (!cacheMetadata) {
       return next.handle();
     }
 
     const request = context.switchToHttp().getRequest();
-    const cacheKey = this.generateCacheKey(request, cacheConfig);
+    const args = context.getArgs();
 
-    // Try to get from cache
-    const cachedResult = await this.cacheService.get(cacheKey);
-    if (cachedResult !== undefined) {
-      this.logger.debug(`Returning cached result for key: ${cacheKey}`);
-      return of(cachedResult);
+    // Check conditions
+    if (cacheMetadata.condition && !cacheMetadata.condition(...args)) {
+      this.logger.debug(`Cache condition not met for ${cacheMetadata.className}.${cacheMetadata.methodName}`);
+      return next.handle();
     }
 
-    // Execute the handler and cache the result
-    return next.handle().pipe(
-      tap(async (response) => {
-        if (response !== undefined && response !== null) {
-          await this.cacheService.set(cacheKey, response, {
-            ttl: cacheConfig.ttl || 300, // Default 5 minutes
-          });
-          this.logger.debug(`Cached result for key: ${cacheKey}`);
-        }
-      }),
-    );
+    if (cacheMetadata.unless && cacheMetadata.unless(...args)) {
+      this.logger.debug(`Cache unless condition met for ${cacheMetadata.className}.${cacheMetadata.methodName}`);
+      return next.handle();
+    }
+
+    // Generate cache key
+    const cacheKey = this.generateCacheKey(cacheMetadata, args, request);
+    
+    try {
+      // Try to get from cache
+      const cachedResult = await this.cacheService.get(cacheKey);
+      
+      if (cachedResult !== undefined) {
+        this.logger.debug(`Cache HIT for key: ${cacheKey}`);
+        this.trackCacheHit(cacheMetadata, cacheKey);
+        return of(cachedResult);
+      }
+
+      this.logger.debug(`Cache MISS for key: ${cacheKey}`);
+      this.trackCacheMiss(cacheMetadata, cacheKey);
+
+      // Execute method and cache result
+      return next.handle().pipe(
+        tap(async (result) => {
+          try {
+            await this.cacheService.set(cacheKey, result, { ttl: cacheMetadata.ttl });
+            this.logger.debug(`Cached result for key: ${cacheKey}, TTL: ${cacheMetadata.ttl}s`);
+          } catch (error) {
+            this.logger.error(`Failed to cache result for key: ${cacheKey}`, error);
+          }
+        }),
+      );
+    } catch (error) {
+      this.logger.error(`Cache operation failed for key: ${cacheKey}`, error);
+      return next.handle();
+    }
   }
 
-  private generateCacheKey(request: any, config: CacheConfig): string {
-    const keyOptions: CacheKeyOptions = {
-      ...config.keyOptions,
-    };
-
-    // Extract common parameters from request
-    if (request.user?.userId) {
-      keyOptions.userId = request.user.userId;
+  private generateCacheKey(
+    metadata: CacheableOptions & { methodName: string; className: string },
+    args: any[],
+    request?: any,
+  ): string {
+    // Use custom key if provided
+    if (metadata.key) {
+      return metadata.key;
     }
 
-    if (request.params?.storeId) {
-      keyOptions.storeId = request.params.storeId;
+    // Use custom key generator if provided
+    if (metadata.keyGenerator) {
+      return metadata.keyGenerator(...args);
     }
 
-    if (request.query?.q) {
-      keyOptions.query = request.query.q;
+    // Default key generation
+    const methodKey = `${metadata.className}:${metadata.methodName}`;
+    const argsKey = args.length > 0 ? `:${this.hashArgs(args)}` : '';
+    const userContext = this.extractUserContext(request);
+    
+    return `${methodKey}${userContext}${argsKey}`;
+  }
+
+  private extractUserContext(request?: any): string {
+    if (!request?.user?.id) {
+      return '';
     }
+    return `:user:${request.user.id}`;
+  }
 
-    // Include request path in cache key
-    const path = request.route?.path || request.url;
-    keyOptions.entityType = `${keyOptions.entityType || 'api'}:${path}`;
+  private hashArgs(args: any[]): string {
+    try {
+      // Filter out complex objects and keep only serializable data
+      const serializableArgs = args.map(arg => {
+        if (typeof arg === 'object' && arg !== null) {
+          // For objects, try to extract ID or key properties
+          if (arg.id) return arg.id;
+          if (arg.key) return arg.key;
+          if (arg.name) return arg.name;
+          // For simple objects, stringify
+          return JSON.stringify(arg);
+        }
+        return arg;
+      });
 
-    // Include query parameters as filters
-    if (request.query && Object.keys(request.query).length > 0) {
-      const { q, page, limit, ...filters } = request.query;
-      if (Object.keys(filters).length > 0) {
-        keyOptions.filters = filters;
-      }
+      const argsString = JSON.stringify(serializableArgs);
+      return this.simpleHash(argsString);
+    } catch (error) {
+      this.logger.warn('Failed to hash arguments, using fallback', error);
+      return 'fallback';
     }
+  }
 
-    return this.cacheService.generateKey(keyOptions);
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  private trackCacheHit(metadata: any, cacheKey: string): void {
+    // TODO: Implement cache hit tracking for monitoring
+    // This could send metrics to a monitoring service
+  }
+
+  private trackCacheMiss(metadata: any, cacheKey: string): void {
+    // TODO: Implement cache miss tracking for monitoring
+    // This could send metrics to a monitoring service
   }
 } 
