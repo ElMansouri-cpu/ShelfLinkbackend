@@ -62,4 +62,26 @@ export class AppConfigService {
   get elasticsearchNode(): string {
     return this.configService.get('elasticsearchNode', { infer: true })!;
   }
+
+  // Redis Configuration
+  get redisHost(): string {
+    return this.configService.get('redisHost', { infer: true })!;
+  }
+
+  get redisPort(): number {
+    return this.configService.get('redisPort', { infer: true })!;
+  }
+
+  get redisPassword(): string | undefined {
+    return this.configService.get('redisPassword', { infer: true });
+  }
+
+  get redisDb(): number {
+    return this.configService.get('redisDb', { infer: true })!;
+  }
+
+  get redisUrl(): string {
+    const auth = this.redisPassword ? `:${this.redisPassword}@` : '';
+    return `redis://${auth}${this.redisHost}:${this.redisPort}/${this.redisDb}`;
+  }
 } 

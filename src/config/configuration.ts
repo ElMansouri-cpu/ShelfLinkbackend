@@ -20,6 +20,12 @@ export interface AppConfig {
 
   // Elasticsearch
   elasticsearchNode: string;
+
+  // Redis
+  redisHost: string;
+  redisPort: number;
+  redisPassword?: string;
+  redisDb: number;
 }
 
 const configSchema = Joi.object({
@@ -44,10 +50,16 @@ const configSchema = Joi.object({
 
   // Elasticsearch
   ELASTICSEARCH_NODE: Joi.string().uri().default('http://localhost:9200'),
+
+  // Redis
+  REDIS_HOST: Joi.string().default('localhost'),
+  REDIS_PORT: Joi.number().default(6379),
+  REDIS_PASSWORD: Joi.string().optional(),
+  REDIS_DB: Joi.number().default(0),
 });
 
-export const validateConfig = (): AppConfig => {
-  const { error, value } = configSchema.validate(process.env, {
+export const validateConfig = (config: Record<string, unknown>): AppConfig => {
+  const { error, value } = configSchema.validate(config, {
     abortEarly: false,
     allowUnknown: true,
   });
@@ -67,7 +79,16 @@ export const validateConfig = (): AppConfig => {
     jwtSecret: value.JWT_SECRET,
     jwtExpiresIn: value.JWT_EXPIRES_IN,
     elasticsearchNode: value.ELASTICSEARCH_NODE,
+    redisHost: value.REDIS_HOST,
+    redisPort: value.REDIS_PORT,
+    redisPassword: value.REDIS_PASSWORD,
+    redisDb: value.REDIS_DB,
   };
 };
 
-export default (): AppConfig => validateConfig(); 
+export default (): AppConfig => {
+  // Ensure dotenv is loaded
+  require('dotenv').config();
+  
+  return validateConfig(process.env);
+}; 

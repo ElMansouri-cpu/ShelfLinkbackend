@@ -28,6 +28,8 @@ import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { HealthModule } from './health/health.module';
+import { AppCacheModule } from './cache/cache.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -83,6 +85,12 @@ import { HealthModule } from './health/health.module';
         return dbConfig;
       },
     }),
+    
+    // Caching
+    AppCacheModule,
+    
+    // Monitoring
+    MonitoringModule,
     
     // Health checks
     HealthModule,

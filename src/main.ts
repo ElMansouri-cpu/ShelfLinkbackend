@@ -6,6 +6,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DatabaseExceptionFilter } from './common/filters/database-exception.filter';
 import { ElasticsearchExceptionFilter } from './common/filters/elasticsearch-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { MetricsInterceptor } from './monitoring/interceptors/metrics.interceptor';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -13,6 +14,9 @@ async function bootstrap() {
   
   // Get configuration service
   const configService = app.get(AppConfigService);
+  
+  // Get monitoring interceptor
+  const metricsInterceptor = app.get(MetricsInterceptor);
   
   // Security middleware
   app.use(helmet({
@@ -37,6 +41,9 @@ async function bootstrap() {
     validateCustomDecorators: true,
   }));
   
+  // Global interceptors
+  app.useGlobalInterceptors(metricsInterceptor);
+  
   // Global exception filters (order matters - most specific first)
   app.useGlobalFilters(
     new HttpExceptionFilter(),
@@ -54,6 +61,9 @@ async function bootstrap() {
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📖 Environment: ${configService.nodeEnv}`);
   console.log(`🔍 Elasticsearch: ${configService.elasticsearchNode}`);
+  console.log(`🔄 Redis: ${configService.redisHost}:${configService.redisPort}`);
+  console.log(`📊 Monitoring: http://localhost:${port}/monitoring/metrics`);
+  console.log(`❤️  Health Check: http://localhost:${port}/health`);
 }
 
 bootstrap().catch(err => {
