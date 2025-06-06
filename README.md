@@ -154,4 +154,15 @@ The application is optimized for performance with:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Environment Files
+
+- `.env.example`: Example for development environment variables
+- `.env.production.example`: Example for production environment variables (now tracked in the repo)
+
+## Docker Setup
+
+- See `DOCKER_SETUP.md` for detailed Docker usage, troubleshooting, and advanced configuration.
+- Only `docker-compose.yml` (development) and `docker-compose.prod.yml` (production) are needed. All other legacy Docker Compose files have been removed.
+- `.dockerignore` is present and tracked for optimized Docker builds. 

@@ -224,6 +224,7 @@ After reviewing the codebase, this document outlines a comprehensive refactoring
    - Separated development and production environments
    - Added proper environment variable handling
    - Implemented secure secrets management
+   - **Added `.env.production.example` for production variables**
 
 3. **Service Optimization**
    - Configured resource limits for containers
@@ -232,9 +233,17 @@ After reviewing the codebase, this document outlines a comprehensive refactoring
 
 4. **Code Cleanup**
    - Removed duplicate Postman collections
-   - Cleaned up unused Docker files
+   - Cleaned up unused Docker Compose files (e.g., `docker-compose.redis.yml`, `redis-compose.yml`, `docker-compose.override.yml`)
    - Organized Docker-related directories
-   - Updated .gitignore for Docker files
+   - Updated `.gitignore` for Docker files
+   - **Added and tracked `.dockerignore`, `docker-compose.prod.yml`, and `DOCKER_SETUP.md`**
+
+#### Documentation & Artifacts Checklist
+- [x] `.env.production.example` present and tracked
+- [x] `.dockerignore` present and tracked
+- [x] `docker-compose.prod.yml` present and tracked
+- [x] `DOCKER_SETUP.md` present and tracked
+- [x] All unused Docker Compose and legacy Postman files removed
 
 #### Performance Improvements
 1. **Redis Configuration**
