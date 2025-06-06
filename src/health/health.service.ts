@@ -15,6 +15,9 @@ export interface HealthStatus {
     elasticsearch: ComponentHealth;
     redis: ComponentHealth;
   };
+  performance?: {
+    cache: CachePerformanceHealth;
+  };
 }
 
 export interface ComponentHealth {
@@ -22,6 +25,14 @@ export interface ComponentHealth {
   responseTime?: number;
   message?: string;
   details?: any;
+}
+
+export interface CachePerformanceHealth {
+  hitRate: number;
+  efficiency: 'excellent' | 'good' | 'fair' | 'poor';
+  totalOperations: number;
+  errors: number;
+  recommendations: string[];
 }
 
 @Injectable()
@@ -33,7 +44,7 @@ export class HealthService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async checkHealth(): Promise<HealthStatus> {
+  async checkHealth(includePerformance = false): Promise<HealthStatus> {
     const startTime = Date.now();
     
     const [database, elasticsearch, redis] = await Promise.allSettled([
@@ -49,7 +60,7 @@ export class HealthService {
     const allHealthy = databaseHealth.status === 'healthy' && elasticsearchHealth.status === 'healthy' && redisHealth.status === 'healthy';
     const someUnhealthy = databaseHealth.status === 'unhealthy' || elasticsearchHealth.status === 'unhealthy' || redisHealth.status === 'unhealthy';
 
-    return {
+    const healthStatus: HealthStatus = {
       status: allHealthy ? 'healthy' : someUnhealthy ? 'degraded' : 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
@@ -61,6 +72,15 @@ export class HealthService {
         redis: redisHealth,
       },
     };
+
+    // Include performance metrics if requested
+    if (includePerformance) {
+      healthStatus.performance = {
+        cache: await this.getCachePerformanceHealth(),
+      };
+    }
+
+    return healthStatus;
   }
 
   async checkDatabase(): Promise<ComponentHealth> {
@@ -127,11 +147,12 @@ export class HealthService {
       await this.cacheService.set(testKey, testValue, { ttl: 5 }); // 5 second TTL
       const retrievedValue = await this.cacheService.get(testKey);
       
-      if (retrievedValue !== testValue) {
+      // Strict comparison - this WILL catch the issue if Redis is not working
+      if (retrievedValue === undefined || retrievedValue !== testValue) {
         return {
           status: 'unhealthy',
           responseTime: Date.now() - startTime,
-          message: 'Redis read/write test failed',
+          message: `Redis is not responding correctly. Retrieved: ${retrievedValue}, Expected: ${testValue}`,
         };
       }
       
@@ -154,9 +175,77 @@ export class HealthService {
       return {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
-        message: 'Redis connection failed',
+        message: 'Redis connection failed - Redis server may not be running',
         details: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  /**
+   * Get cache performance health metrics
+   */
+  private async getCachePerformanceHealth(): Promise<CachePerformanceHealth> {
+    try {
+      const metrics = this.cacheService.getMetrics();
+      const { hitRate, hits, misses, errors } = metrics;
+      const totalOperations = hits + misses;
+      
+      // Determine efficiency level
+      let efficiency: 'excellent' | 'good' | 'fair' | 'poor';
+      const recommendations: string[] = [];
+
+      if (hitRate >= 80) {
+        efficiency = 'excellent';
+      } else if (hitRate >= 60) {
+        efficiency = 'good';
+        recommendations.push('Consider increasing TTL for frequently accessed data');
+      } else if (hitRate >= 40) {
+        efficiency = 'fair';
+        recommendations.push('Review caching strategy for better hit rates');
+        recommendations.push('Consider cache warming for common queries');
+      } else {
+        efficiency = 'poor';
+        recommendations.push('Urgent: Review and optimize caching strategy');
+        recommendations.push('Consider implementing cache warming');
+      }
+
+      // Add error-related recommendations
+      if (errors > 0 && totalOperations > 0) {
+        const errorRate = (errors / totalOperations) * 100;
+        if (errorRate > 5) {
+          recommendations.push('High error rate - investigate Redis connectivity');
+        }
+      }
+
+      return {
+        hitRate,
+        efficiency,
+        totalOperations,
+        errors,
+        recommendations,
+      };
+    } catch (error) {
+      return {
+        hitRate: 0,
+        efficiency: 'poor',
+        totalOperations: 0,
+        errors: 1,
+        recommendations: ['Cache performance check failed'],
+      };
+    }
+  }
+
+  /**
+   * Get detailed cache metrics
+   */
+  async getCacheMetrics() {
+    return this.cacheService.getMetrics();
+  }
+
+  /**
+   * Get comprehensive system health with performance data
+   */
+  async getDetailedHealth(): Promise<HealthStatus> {
+    return this.checkHealth(true);
   }
 } 
