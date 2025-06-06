@@ -375,6 +375,26 @@ The application includes comprehensive health monitoring endpoints:
 - ✅ **Categories Service**: Category trees, hierarchies, breadcrumbs
 - ✅ **Search Service**: Global search, suggestions, analytics
 
+### 🔧 Cache Interceptor Fix (June 2025)
+
+**Issue Resolved**: Cache decorators were not working for search endpoints because `@Cacheable` decorators were only applied to service methods, but global interceptors only check controller method metadata.
+
+**✅ Solution Applied**: Added controller-level caching to all search endpoints:
+
+#### Search Endpoints Now Cached
+- **🔍 Categories Search**: `/stores/{id}/categories/fetch` - 5 minutes TTL
+- **🔍 Brands Search**: `/stores/{id}/brands/elasticsearch` - 5 minutes TTL  
+- **🔍 Variants Search**: `/stores/{id}/variants/fetch` - 5 minutes TTL
+
+#### Cache Key Patterns
+```typescript
+// Categories: search:categories:{query}:page:{page}:limit:{limit}:filters:{filters}:store:{storeId}
+// Brands: search:brands:{query}:filters:{filters}:store:{storeId}
+// Variants: search:variants:{query}:page:{page}:limit:{limit}:filters:{filters}:store:{storeId}
+```
+
+**🎉 Result**: All search endpoints now benefit from enterprise-grade caching with proper metrics tracking. Cache metrics endpoint (`/cache/metrics`) will now show accurate hits, misses, and sets for search operations.
+
 ## 🛡️ Security Features
 
 ### Built-in Security Measures

@@ -5,13 +5,23 @@ import { Variant } from '../entities/variant.entity';
 import { CreateVariantDto } from '../dto/create-variant.dto';
 import { UpdateVariantDto } from '../dto/update-variant.dto';
 import { VariantSearchService } from '../services/variant-search.service';
+import { Cacheable } from '../../cache/decorators';
 
 @Controller('stores/:storeId/variants')
 export class VariantController extends StoreCrudController<Variant, CreateVariantDto, UpdateVariantDto> {
   constructor(protected readonly service: VariantService, private readonly variantSearchService: VariantSearchService) {
     super(service);
   }
+  
   @Get('fetch')
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (storeId, q = '', filters = {}) => {
+      const { page = 1, limit = 20, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:variants:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+    },
+  })
   async elasticsearch(
     @Param('storeId') storeId: string,
     @Query('q') q: string,

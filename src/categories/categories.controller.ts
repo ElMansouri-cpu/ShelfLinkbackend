@@ -93,6 +93,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { User } from '../auth/decorators/user.decorator';
 import { CategorySearchService } from './services/category-search.service';
+import { Cacheable } from '../cache/decorators';
 
 @Controller('stores/:storeId/categories')
 @UseGuards(SupabaseAuthGuard)
@@ -129,6 +130,14 @@ export class CategoriesController extends StoreCrudController<
   }
 
   @Get('fetch')
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (storeId, q = '', filters = {}) => {
+      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:categories:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+    },
+  })
   async fetch(
     @Param('storeId') storeId: string,
     @Query('q') q: string,

@@ -6,6 +6,7 @@ import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
 import { User } from '../auth/decorators/user.decorator';
 import { QueryDto } from 'src/common/dto/query.dto';
 import { Brand } from './entities/brand.entity';
+import { Cacheable } from '../cache/decorators';
 
 @Controller('stores/:storeId/brands')
 @UseGuards(SupabaseAuthGuard)
@@ -22,6 +23,14 @@ export class BrandsController {
   }
 
   @Get('elasticsearch')
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (storeId, query = '', filters = {}, user) => {
+      const { q, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:brands:${query || 'all'}:filters:${filtersKey}:store:${storeId}`;
+    },
+  })
   async elasticSearch(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
     @Query('q') query: string = '',

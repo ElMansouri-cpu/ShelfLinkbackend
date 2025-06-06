@@ -21,15 +21,24 @@ export class CacheInterceptor implements NestInterceptor {
   ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+    const handler = context.getHandler();
+    const className = context.getClass().name;
+    const methodName = handler.name;
+    
+    this.logger.debug(`Cache interceptor called for ${className}.${methodName}`);
+    
     const cacheMetadata = this.reflector.get<CacheableOptions & { 
       methodName: string; 
       className: string; 
     }>(
       CACHEABLE_METADATA,
-      context.getHandler(),
+      handler,
     );
 
+    this.logger.debug(`Cache metadata found: ${cacheMetadata ? 'YES' : 'NO'} for ${className}.${methodName}`);
+
     if (!cacheMetadata) {
+      this.logger.debug(`No cache metadata for ${className}.${methodName}, skipping cache`);
       return next.handle();
     }
 
@@ -49,6 +58,8 @@ export class CacheInterceptor implements NestInterceptor {
 
     // Generate cache key
     const cacheKey = this.generateCacheKey(cacheMetadata, args, request);
+    
+    this.logger.debug(`Generated cache key: ${cacheKey}`);
     
     try {
       // Try to get from cache
