@@ -23,6 +23,13 @@ A comprehensive NestJS-based backend API for multi-tenant store management with 
 - **Validation**: Input validation with class-validator
 - **Security**: JWT authentication with Supabase integration
 
+### 🆕 Phase 1 Improvements (Recently Added)
+- **Centralized Configuration**: Joi-validated environment configuration with type safety
+- **Comprehensive Error Handling**: Global exception filters for HTTP, Database, and Elasticsearch errors
+- **Security Enhancements**: Helmet security headers, rate limiting, and environment-based CORS
+- **Health Monitoring**: Real-time health checks for database and Elasticsearch connectivity
+- **Production-Ready Setup**: Graceful shutdown, structured logging, and enhanced validation
+
 ## 🏗️ Architecture
 
 ### Project Structure
@@ -35,9 +42,12 @@ src/
 │   ├── controllers/        # Base controller classes
 │   ├── dto/               # Data Transfer Objects
 │   ├── entities/          # Base entity classes
+│   ├── filters/           # 🆕 Global exception filters
 │   ├── services/          # Base service classes
 │   └── types/             # TypeScript type definitions
+├── config/                 # 🆕 Centralized configuration management
 ├── elasticsearch/          # Search module and configuration
+├── health/                 # 🆕 Health monitoring endpoints
 ├── orders/                # Order and order item management
 ├── products/              # Product variants and tax management
 ├── providers/             # Provider management
@@ -69,6 +79,11 @@ src/
 - TypeORM repositories for data access
 - Abstracted database operations
 
+#### 5. **🆕 Configuration Pattern**
+- Centralized configuration with Joi validation
+- Type-safe environment variable access
+- Environment-specific settings
+
 ## 🔧 Technology Stack
 
 ### Backend Framework
@@ -94,6 +109,12 @@ src/
 - **class-validator**: Input validation
 - **class-transformer**: Data transformation
 - **Swagger/OpenAPI**: API documentation
+- **🆕 Joi**: Configuration validation
+
+### Security & Monitoring
+- **🆕 Helmet**: Security headers
+- **🆕 @nestjs/throttler**: Rate limiting
+- **🆕 Health Checks**: System monitoring
 
 ### Development & Deployment
 - **Docker**: Containerization
@@ -110,29 +131,31 @@ src/
 - Supabase account
 
 ### Environment Variables
-Create a `.env` file with the following variables:
+Create a `.env` file with the following **required** variables (all are validated on startup):
 
 ```env
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/store_management
-
-# Supabase Configuration
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-SUPABASE_JWT_SECRET=your_supabase_jwt_secret
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=7d
-
-# Elasticsearch Configuration
-ELASTICSEARCH_NODE=http://localhost:9200
-
 # Application Configuration
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
+
+# Database Configuration
+DATABASE_URL=postgresql://username:password@localhost:5432/store_management
+
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_supabase_anon_key
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret
+
+# JWT Configuration (minimum 32 characters)
+JWT_SECRET=your_32_character_minimum_jwt_secret_key_here
+JWT_EXPIRES_IN=7d
+
+# Elasticsearch Configuration
+ELASTICSEARCH_NODE=http://localhost:9200
 ```
+
+> **Note**: The application will fail to start if any required environment variables are missing or invalid. This ensures configuration integrity in all environments.
 
 ### Installation
 
@@ -177,6 +200,67 @@ docker-compose up --build
 2. **Build Docker image manually**
 ```bash
 ./docker-build.sh
+```
+
+## 🔍 Health Monitoring
+
+The application includes comprehensive health monitoring endpoints:
+
+### Health Check Endpoints
+- `GET /health` - Overall system health status
+- `GET /health/database` - PostgreSQL connectivity check
+- `GET /health/elasticsearch` - Elasticsearch connectivity check
+
+### Health Response Format
+```json
+{
+  "status": "healthy|degraded|unhealthy",
+  "timestamp": "2025-06-06T13:30:00.000Z",
+  "uptime": 3600,
+  "version": "1.0.0",
+  "environment": "development",
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "responseTime": 15,
+      "message": "Database connection is healthy"
+    },
+    "elasticsearch": {
+      "status": "healthy", 
+      "responseTime": 8,
+      "message": "Elasticsearch connection is healthy"
+    }
+  }
+}
+```
+
+## 🛡️ Security Features
+
+### Built-in Security Measures
+- **Helmet**: Security headers (CSP, HSTS, etc.)
+- **Rate Limiting**: Configurable request throttling
+- **CORS**: Environment-based origin control
+- **Input Validation**: Strict validation with error filtering
+- **JWT Security**: Secure token handling
+
+### Error Handling
+The application includes comprehensive error handling:
+- **HTTP Exceptions**: Standardized error responses
+- **Database Errors**: PostgreSQL-specific error mapping
+- **Elasticsearch Errors**: Search service error handling
+- **Unhandled Exceptions**: Catch-all error logging
+
+### Error Response Format
+```json
+{
+  "statusCode": 400,
+  "timestamp": "2025-06-06T13:30:00.000Z",
+  "path": "/api/endpoint",
+  "method": "POST",
+  "message": "Validation failed",
+  "error": "ValidationError",
+  "requestId": "req_1733565600_abc123def"
+}
 ```
 
 ## 📚 API Documentation

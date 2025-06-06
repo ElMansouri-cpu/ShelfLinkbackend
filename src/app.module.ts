@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 import { AppController } from './app.controller';
@@ -24,25 +23,41 @@ import { Tax } from './products/entities/tax.entity';
 import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
 import { Unit } from './unit/entities/unit.entity';
+import { SearchModule } from './elasticsearch/elasticsearch.module';
+import { AppConfigModule } from './config/config.module';
+import { AppConfigService } from './config/config.service';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
+    // Configuration module (must be first)
+    AppConfigModule,
+    
+    // Rate limiting
+    ThrottlerModule.forRootAsync({
+      inject: [AppConfigService],
+      useFactory: (configService: AppConfigService) => ({
+        throttlers: [
+          {
+            ttl: 60000, // 1 minute
+            limit: configService.isDevelopment ? 1000 : 100, // Requests per TTL
+          },
+        ],
+      }),
     }),
+    
+    // Database
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService): PostgresConnectionOptions => {
-        const databaseUrl = configService.get('DATABASE_URL');
+      inject: [AppConfigService],
+      useFactory: (configService: AppConfigService): PostgresConnectionOptions => {
+        const databaseUrl = configService.databaseUrl;
         const url = new URL(databaseUrl);
         
         const dbConfig: PostgresConnectionOptions = {
           type: 'postgres',
           host: url.hostname,
-          ssl: {
-            rejectUnauthorized: false,
-          },
-          port: parseInt(url.port),
+          port: parseInt(url.port) || 5432,
           username: url.username,
           password: url.password,
           database: url.pathname.substring(1),
@@ -58,14 +73,21 @@ import { Unit } from './unit/entities/unit.entity';
             OrderItem,
             Unit,
           ],
+          synchronize: !configService.isProduction,
+          logging: configService.isDevelopment ? ['query', 'error'] : ['error'],
+          ssl: configService.isProduction ? {
+            rejectUnauthorized: false,
+          } : false,
         };
-
-        
 
         return dbConfig;
       },
-      inject: [ConfigService],
     }),
+    
+    // Health checks
+    HealthModule,
+    
+    // Application modules
     AuthModule,
     UsersModule,
     SupabaseModule,
@@ -76,6 +98,7 @@ import { Unit } from './unit/entities/unit.entity';
     UnitModule,
     ProductsModule,
     OrdersModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,0 +1,54 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
+import { BaseSearchService } from '../../common/services/base-search.service';
+import { User } from '../entities/user.entity';
+
+@Injectable()
+export class UserSearchService extends BaseSearchService<User> {
+  protected readonly index = 'users';
+  protected readonly searchFields = [
+    'username^3',
+    'email^3',
+    'subscriptionTier'
+  ];
+
+  constructor(
+    protected readonly esService: ElasticsearchService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {
+    super(esService);
+  }
+
+  protected async flattenEntity(user: User): Promise<any> {
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      subscriptionTier: user.subscriptionTier,
+      storeLimit: user.storeLimit,
+      user_metadata: user.user_metadata,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  async reindexByStore(storeId: string): Promise<void> {
+    // Users are not directly tied to stores, but we can reindex users who own the store
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.stores', 'store', 'store.id = :storeId', { storeId })
+      .getMany();
+
+    await this.bulkIndex(users);
+  }
+
+  async reindexByUser(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user) {
+      await this.indexEntity(user);
+    }
+  }
+} 

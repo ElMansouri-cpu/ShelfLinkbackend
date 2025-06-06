@@ -11,6 +11,7 @@ import { Brand } from './entities/brand.entity';
 @UseGuards(SupabaseAuthGuard)
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
+
   @Get('search')
   searchItems(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
@@ -19,6 +20,30 @@ export class BrandsController {
   ): Promise<Brand[]> {
     return this.brandsService.textSearchBrands(storeId, search, user.id);
   }
+
+  @Get('elasticsearch')
+  async elasticSearch(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Query('q') query: string = '',
+    @Query() filters: any,
+    @User() user,
+  ) {
+    const { q, ...cleanFilters } = filters;
+    return this.brandsService.elasticSearch(storeId, query, cleanFilters, user.id);
+  }
+
+  @Post('elasticsearch/reindex')
+  async reindexStore(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @User() user,
+  ) {
+    // Verify store ownership
+    await this.brandsService.storesService.findOne(storeId, user.id);
+    
+    await this.brandsService.searchService.reindexByStore(storeId);
+    return { message: 'Brands reindexing completed' };
+  }
+
   @Post()
   create(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
@@ -71,9 +96,11 @@ export class BrandsController {
   }
 
   @Post('filterquery')
-  queryItems(@Body() queryDto: QueryDto) {
-    return this.brandsService.queryBrands(queryDto);
+  queryItems(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Body() queryDto: QueryDto,
+    @User() user,
+  ) {
+    return this.brandsService.queryBrands(storeId, queryDto, user.id);
   }
-
-
 } 
