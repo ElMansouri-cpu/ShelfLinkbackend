@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { BaseSearchService } from '../../common/services/base-search.service';
 import { Order } from '../entities/order.entity';
+import { CacheEvict } from '../../cache/decorators';
 
 @Injectable()
 export class OrderSearchService extends BaseSearchService<Order> {
@@ -43,6 +44,7 @@ export class OrderSearchService extends BaseSearchService<Order> {
         name: order.store.name,
         logo: order.store.logo,
         url: order.store.url,
+        status: order.store.status,
       } : null,
       
       user: order.user ? {
@@ -67,6 +69,9 @@ export class OrderSearchService extends BaseSearchService<Order> {
     };
   }
 
+  @CacheEvict({
+    patternGenerator: (storeId) => `search:orders:*`,
+  })
   async reindexByStore(storeId: string): Promise<void> {
     const orders = await this.orderRepository.find({
       where: { storeId },
@@ -76,6 +81,9 @@ export class OrderSearchService extends BaseSearchService<Order> {
     await this.bulkIndex(orders);
   }
 
+  @CacheEvict({
+    patternGenerator: (userId) => `search:orders:*`,
+  })
   async reindexByUser(userId: string): Promise<void> {
     const orders = await this.orderRepository.find({
       where: { userId },

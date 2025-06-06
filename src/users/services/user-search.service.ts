@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { BaseSearchService } from '../../common/services/base-search.service';
 import { User } from '../entities/user.entity';
+import { CacheEvict } from '../../cache/decorators';
 
 @Injectable()
 export class UserSearchService extends BaseSearchService<User> {
@@ -35,6 +36,9 @@ export class UserSearchService extends BaseSearchService<User> {
     };
   }
 
+  @CacheEvict({
+    patternGenerator: (storeId) => `search:users:*`,
+  })
   async reindexByStore(storeId: string): Promise<void> {
     // Users are not directly tied to stores, but we can reindex users who own the store
     const users = await this.userRepository
@@ -45,6 +49,9 @@ export class UserSearchService extends BaseSearchService<User> {
     await this.bulkIndex(users);
   }
 
+  @CacheEvict({
+    patternGenerator: (userId) => `search:users:*`,
+  })
   async reindexByUser(userId: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (user) {

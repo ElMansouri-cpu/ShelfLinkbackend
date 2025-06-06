@@ -1,202 +1,10 @@
-// import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-// import { InjectRepository } from '@nestjs/typeorm';
-// import { Repository } from 'typeorm';
-// import { Category } from './entities/category.entity';
-// import { CreateCategoryDto } from './dto/create-category.dto';
-// import { UpdateCategoryDto } from './dto/update-category.dto';
-// import { StoresService } from '../stores/stores.service';
-// import { QueryDto } from 'src/common/dto/query.dto';
-
-// @Injectable()
-// export class CategoriesService {
-//   constructor(
-//     @InjectRepository(Category)
-//     private readonly categoryRepository: Repository<Category>,
-//     private readonly storesService: StoresService,
-//   ) {}
-
-//   async create(createCategoryDto: CreateCategoryDto, userId: string): Promise<Category> {
-//     // Verify that the store belongs to the user
-//     await this.storesService.findOne(createCategoryDto.storeId, userId);
-
-//     // If parentId is provided, verify it exists and belongs to the same store
-//     if (createCategoryDto.parentId) {
-//       const parentCategory = await this.categoryRepository.findOne({
-//         where: { id: createCategoryDto.parentId, storeId: createCategoryDto.storeId }
-//       });
-      
-//       if (!parentCategory) {
-//         throw new BadRequestException('Parent category not found or does not belong to the specified store');
-//       }
-//     }
-
-//     // Create new category
-//     const category = this.categoryRepository.create({
-//       ...createCategoryDto,
-//       productsCount: 0,
-//     });
-
-//     return this.categoryRepository.save(category);
-//   }
-
-//   async findAll(storeId: string, userId: string): Promise<Category[]> {
-//     // Verify that the store belongs to the user
-//     await this.storesService.findOne(storeId, userId);
-    
-//     return this.categoryRepository.find({
-//       where: { storeId },
-//       relations: ['parent', 'children'],
-//       order: {
-//         name: 'ASC',
-//       },
-//     });
-//   }
-
-//   async findOne(id: number, storeId: string, userId: string): Promise<Category> {
-//     // Verify that the store belongs to the user
-//     await this.storesService.findOne(storeId, userId);
-    
-//     const category = await this.categoryRepository.findOne({
-//       where: { id, storeId },
-//       relations: ['parent', 'children'],
-//     });
-    
-//     if (!category) {
-//       throw new NotFoundException('Category not found');
-//     }
-    
-//     return category;
-//   }
-
-//   async update(id: number, updateCategoryDto: UpdateCategoryDto, storeId: string, userId: string): Promise<Category> {
-//     const category = await this.findOne(id, storeId, userId);
-    
-//     // If storeId is being updated, verify the new store belongs to the user
-//     if (updateCategoryDto.storeId && updateCategoryDto.storeId !== storeId) {
-//       await this.storesService.findOne(updateCategoryDto.storeId, userId);
-//     }
-    
-//     // If parentId is being updated, verify it exists and belongs to the same store
-//     if (updateCategoryDto.parentId) {
-//       const targetStoreId = updateCategoryDto.storeId || storeId;
-//       const parentCategory = await this.categoryRepository.findOne({
-//         where: { id: updateCategoryDto.parentId, storeId: targetStoreId }
-//       });
-      
-//       if (!parentCategory) {
-//         throw new BadRequestException('Parent category not found or does not belong to the specified store');
-//       }
-      
-//       // Prevent circular references
-//       if (updateCategoryDto.parentId === id) {
-//         throw new BadRequestException('A category cannot be its own parent');
-//       }
-//     }
-    
-//     // Update category
-//     Object.assign(category, updateCategoryDto);
-    
-//     return this.categoryRepository.save(category);
-//   }
-
-//   async remove(id: number, storeId: string, userId: string): Promise<void> {
-//     const category = await this.findOne(id, storeId, userId);
-    
-//     // Check if category has children
-//     const hasChildren = await this.categoryRepository.count({ where: { parentId: id } }) > 0;
-//     if (hasChildren) {
-//       throw new BadRequestException('Cannot delete category with subcategories. Please delete subcategories first.');
-//     }
-    
-//     await this.categoryRepository.remove(category);
-//   }
-
-//   async updateProductsCount(id: number, storeId: string, userId: string, increment: boolean = true): Promise<Category> {
-//     const category = await this.findOne(id, storeId, userId);
-    
-//     if (increment) {
-//       category.productsCount += 1;
-//     } else {
-//       category.productsCount = Math.max(0, category.productsCount - 1);
-//     }
-    
-//     return this.categoryRepository.save(category);
-//   }
-
-//   async queryCategories(dto: QueryDto) {
-//     const qb = this.categoryRepository.createQueryBuilder('categorie');
-
-//     // Filters
-//     dto.filters.forEach((filter, index) => {
-//       const paramKey = `filter_${index}`;
-//       const column = `categorie.${filter.column}`;
-//       let condition = '';
-//       let value = filter.value;
-
-//       switch (filter.operator) {
-//         case 'contains':
-//           condition = `${column} ILIKE :${paramKey}`;
-//           value = `%${value}%`;
-//           break;
-//         case 'startsWith':
-//           condition = `${column} ILIKE :${paramKey}`;
-//           value = `${value}%`;
-//           break;
-//         case 'endsWith':
-//           condition = `${column} ILIKE :${paramKey}`;
-//           value = `%${value}`;
-//           break;
-//         case 'equals':
-//           condition = `${column} = :${paramKey}`;
-//           break;
-//       }
-
-//       qb.andWhere(condition, { [paramKey]: value });
-//     });
-
-//     // Sorting
-//     dto.sorts.forEach((sort) => {
-//       qb.addOrderBy(`categorie.${sort.column}`, sort.direction.toUpperCase() as 'ASC' | 'DESC');
-//     });
-
-//     return qb.getMany();
-//   }
-
-//   async textSearchCategories(
-//     storeId: string,
-//     search: string,
-//     userId: string
-//   ): Promise<Category[]> {
-//     // Ensure store belongs to user
-//     await this.storesService.findOne(storeId, userId);
-  
-//     const query = this.categoryRepository
-//       .createQueryBuilder('category')
-//       .where('category.storeId = :storeId', { storeId });
-  
-//     if (search?.trim()) {
-//       const trimmed = search.trim();
-//       query.andWhere(
-//         `(category.name ILIKE :search OR category.description ILIKE :search)`,
-//         { search: `%${trimmed}%` },
-//       );
-//     }
-  
-//     return query
-//       .orderBy('category.createdAt', 'DESC')
-//       .getMany();
-//   }
-//   }
-
-
-// src/categories/categories.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { StoreCrudService } from 'src/common/services/store-crud.service';
 import { Category } from './entities/category.entity';
 import { Repository } from 'typeorm';
 import { StoresService } from '../stores/stores.service';
-import { Order } from 'src/orders/entities/order.entity';
+import { Cacheable, CacheEvict, CachePatterns } from '../cache/decorators';
 
 @Injectable()
 export class CategoriesService extends StoreCrudService<Category> {
@@ -210,7 +18,82 @@ export class CategoriesService extends StoreCrudService<Category> {
     super(repo, storesService);
   }
 
-  
+  /**
+   * Override create with cache invalidation
+   * Invalidates store category caches when new category is created
+   */
+  @CacheEvict({
+    patternGenerator: (data) => `store:${data.storeId}:categories*`,
+  })
+  async create(data: Partial<Category>): Promise<Category> {
+    return super.create(data);
+  }
+
+  /**
+   * Override update with cache invalidation
+   * Invalidates specific category and store category caches
+   */
+  @CacheEvict({
+    patternGenerator: (id, data) => `category:${id}*`,
+  })
+  async update(id: string | number, data: Partial<Category>): Promise<Category> {
+    return super.update(id, data);
+  }
+
+  /**
+   * Override remove with cache invalidation
+   */
+  @CacheEvict({
+    patternGenerator: (id) => `category:${id}*`,
+  })
+  async remove(id: string | number): Promise<void> {
+    return super.remove(id);
+  }
+
+  /**
+   * Get categories by store with caching (10 minutes TTL)
+   * Categories don't change frequently, so longer cache
+   */
+  @Cacheable(CachePatterns.Store((storeId) => `store:${storeId}:categories`))
+  async findByStore(storeId: string): Promise<Category[]> {
+    return this.repo.find({
+      where: { storeId },
+      relations: ['parent', 'children'],
+      order: { name: 'ASC' },
+    });
+  }
+
+  /**
+   * Get single category with relations and caching
+   */
+  @Cacheable({
+    ttl: 600, // 10 minutes
+    keyGenerator: (id, storeId) => `category:${id}:store:${storeId}:full`,
+  })
+  async findOneWithRelations(id: string | number, storeId?: string): Promise<Category> {
+    const where: any = { id };
+    if (storeId) where.storeId = storeId;
+
+    const category = await this.repo.findOne({
+      where,
+      relations: ['parent', 'children'],
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    return category;
+  }
+
+  /**
+   * Get category products with caching (5 minutes TTL)
+   * Product listings change more frequently
+   */
+  @Cacheable({
+    ttl: 300, // 5 minutes
+    keyGenerator: (id) => `category:${id}:products`,
+  })
   async getProducts(id: string) {
     const category = await this.repo
       .createQueryBuilder('category')
@@ -225,5 +108,192 @@ export class CategoriesService extends StoreCrudService<Category> {
     return category.variants;
   }
 
-  // you can still override create/update if you need.
+  /**
+   * Get root categories (no parent) with caching
+   */
+  @Cacheable({
+    ttl: 900, // 15 minutes
+    keyGenerator: (storeId) => `store:${storeId}:categories:root`,
+  })
+  async getRootCategories(storeId: string): Promise<Category[]> {
+    return this.repo
+      .createQueryBuilder('category')
+      .where('category.storeId = :storeId', { storeId })
+      .andWhere('category.parentId IS NULL')
+      .leftJoinAndSelect('category.children', 'children')
+      .orderBy('category.name', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * Get category tree (hierarchical structure) with caching
+   */
+  @Cacheable({
+    ttl: 1800, // 30 minutes (tree structure changes infrequently)
+    keyGenerator: (storeId) => `store:${storeId}:categories:tree`,
+  })
+  async getCategoryTree(storeId: string): Promise<Category[]> {
+    // Get all categories for the store
+    const categories = await this.repo.find({
+      where: { storeId },
+      relations: ['children', 'parent'],
+      order: { name: 'ASC' },
+    });
+
+    // Build tree structure (root categories with their children)
+    const rootCategories = categories.filter(cat => !cat.parentId);
+    
+    const buildTree = (parentCategory: Category): Category => {
+      const children = categories.filter(cat => cat.parentId === parentCategory.id);
+      return {
+        ...parentCategory,
+        children: children.map(buildTree),
+      };
+    };
+
+    return rootCategories.map(buildTree);
+  }
+
+  /**
+   * Search categories with caching
+   */
+  @Cacheable(CachePatterns.Search((storeId, searchTerm) => `search:categories:${storeId}:${searchTerm}`))
+  async searchCategories(storeId: string, searchTerm: string): Promise<Category[]> {
+    return this.repo
+      .createQueryBuilder('category')
+      .where('category.storeId = :storeId', { storeId })
+      .andWhere('(category.name ILIKE :search OR category.description ILIKE :search)', {
+        search: `%${searchTerm}%`,
+      })
+      .orderBy('category.name', 'ASC')
+      .limit(20)
+      .getMany();
+  }
+
+  /**
+   * Get categories by parent with caching
+   */
+  @Cacheable({
+    ttl: 600, // 10 minutes
+    keyGenerator: (parentId, storeId) => `category:${parentId}:children:store:${storeId}`,
+  })
+  async getCategoriesByParent(parentId: number, storeId: string): Promise<Category[]> {
+    return this.repo.find({
+      where: { parentId, storeId },
+      order: { name: 'ASC' },
+    });
+  }
+
+  /**
+   * Get category statistics with caching
+   */
+  @Cacheable({
+    ttl: 900, // 15 minutes
+    keyGenerator: (storeId) => `store:${storeId}:category_stats`,
+  })
+  async getCategoryStatistics(storeId: string): Promise<{
+    totalCategories: number;
+    rootCategories: number;
+    categoriesWithProducts: number;
+    maxDepth: number;
+    averageProductsPerCategory: number;
+  }> {
+    const result = await this.repo
+      .createQueryBuilder('category')
+      .select([
+        'COUNT(*) as totalCategories',
+        'COUNT(CASE WHEN category.parentId IS NULL THEN 1 END) as rootCategories',
+        'COUNT(CASE WHEN category.productsCount > 0 THEN 1 END) as categoriesWithProducts',
+        'AVG(category.productsCount) as averageProductsPerCategory',
+      ])
+      .where('category.storeId = :storeId', { storeId })
+      .getRawOne();
+
+    // Calculate max depth (simplified - would need recursive query for accurate depth)
+    const maxDepth = 3; // Placeholder - would calculate actual depth
+
+    return {
+      totalCategories: parseInt(result.totalCategories) || 0,
+      rootCategories: parseInt(result.rootCategories) || 0,
+      categoriesWithProducts: parseInt(result.categoriesWithProducts) || 0,
+      maxDepth,
+      averageProductsPerCategory: parseFloat(result.averageProductsPerCategory) || 0,
+    };
+  }
+
+  /**
+   * Get popular categories (most products) with caching
+   */
+  @Cacheable({
+    ttl: 1800, // 30 minutes
+    keyGenerator: (storeId, limit = 10) => `store:${storeId}:categories:popular:${limit}`,
+  })
+  async getPopularCategories(storeId: string, limit: number = 10): Promise<Category[]> {
+    return this.repo.find({
+      where: { storeId },
+      order: { productsCount: 'DESC' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Update products count with cache invalidation
+   */
+  @CacheEvict({
+    patternGenerator: (categoryId, storeId) => `category:${categoryId}*`,
+    keyGenerator: (categoryId, storeId) => `store:${storeId}:categories`,
+  })
+  async updateProductsCount(categoryId: number, storeId: string, increment: boolean = true): Promise<Category> {
+    const category = await this.repo.findOne({ where: { id: categoryId, storeId } });
+    
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (increment) {
+      category.productsCount += 1;
+    } else {
+      category.productsCount = Math.max(0, category.productsCount - 1);
+    }
+
+    return this.repo.save(category);
+  }
+
+  /**
+   * Get category breadcrumb path with caching
+   */
+  @Cacheable({
+    ttl: 1800, // 30 minutes (breadcrumbs don't change often)
+    keyGenerator: (categoryId) => `category:${categoryId}:breadcrumb`,
+  })
+  async getCategoryBreadcrumb(categoryId: number): Promise<Category[]> {
+    const breadcrumb: Category[] = [];
+    let currentCategory = await this.repo.findOne({ 
+      where: { id: categoryId },
+      relations: ['parent'] 
+    });
+
+    while (currentCategory) {
+      breadcrumb.unshift(currentCategory);
+      currentCategory = currentCategory.parent;
+    }
+
+    return breadcrumb;
+  }
+
+  /**
+   * Get categories with product count > 0
+   */
+  @Cacheable({
+    ttl: 600, // 10 minutes
+    keyGenerator: (storeId) => `store:${storeId}:categories:with_products`,
+  })
+  async getCategoriesWithProducts(storeId: string): Promise<Category[]> {
+    return this.repo
+      .createQueryBuilder('category')
+      .where('category.storeId = :storeId', { storeId })
+      .andWhere('category.productsCount > 0')
+      .orderBy('category.productsCount', 'DESC')
+      .getMany();
+  }
 }
