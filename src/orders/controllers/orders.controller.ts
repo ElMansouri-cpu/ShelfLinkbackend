@@ -7,6 +7,7 @@ import { StoreCrudController } from '../../common/controllers/store-crud.control
 import { OrderItem } from '../entities/order-item.entity';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { Module, forwardRef } from '@nestjs/common';
 
 @Controller('orders')
 export class OrdersController extends StoreCrudController<

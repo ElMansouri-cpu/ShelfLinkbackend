@@ -4,6 +4,7 @@ import { Repository, FindOptionsWhere } from 'typeorm';
 import { Tax } from '../entities/tax.entity';
 import { StoreCrudService } from '../../common/services/store-crud.service';
 import { StoresService } from '../../stores/stores.service';
+import { VariantSearchService } from './variant-search.service';
 
 @Injectable()
 export class VariantTaxesService extends StoreCrudService<Tax> {
@@ -14,6 +15,7 @@ export class VariantTaxesService extends StoreCrudService<Tax> {
     @InjectRepository(Tax)
     protected readonly repo: Repository<Tax>,
     protected readonly storesService: StoresService,
+    private readonly variantSearchService: VariantSearchService,
   ) {
     super(repo, storesService);
   }
@@ -31,7 +33,12 @@ export class VariantTaxesService extends StoreCrudService<Tax> {
   }
 
   async update(id: string | number, data: Partial<Tax>, whereExtra?: FindOptionsWhere<Tax>): Promise<Tax> {
-    return super.update(id, data, whereExtra);
+    const updatedTax = await super.update(id, data, whereExtra);
+    
+    // Reindex all variants that use this tax
+    await this.variantSearchService.reindexVariantsByTax(id.toString());
+    
+    return updatedTax;
   }
 
   async remove(id: string | number, whereExtra?: FindOptionsWhere<Tax>): Promise<void> {

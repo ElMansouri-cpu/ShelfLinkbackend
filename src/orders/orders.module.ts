@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersService } from './services/orders.service';
 import { OrdersController } from './controllers/orders.controller';
@@ -10,32 +10,35 @@ import { StoresModule } from '../stores/stores.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { UsersModule } from '../users/users.module';
 import { OrdersGateway } from './orders.gateway';
+import { OrderSearchService } from './services/order-search.service';
+import { SearchModule } from '../elasticsearch/elasticsearch.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Order,
       OrderItem,
- 
     ]),
     StoresModule,
     SupabaseModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
+    forwardRef(() => SearchModule),
   ],
   controllers: [
     OrdersController,
     OrderItemsController,
-
   ],
   providers: [
     OrdersService,
     OrderItemsService,
-    OrdersGateway
+    OrdersGateway,
+    OrderSearchService
   ],
   exports: [
     OrdersService,
     OrderItemsService,
-    OrdersGateway
+    OrdersGateway,
+    OrderSearchService
   ],
 })
 export class OrdersModule {} 

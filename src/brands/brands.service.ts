@@ -6,14 +6,31 @@ import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { StoresService } from '../stores/stores.service';
 import { QueryDto } from 'src/common/dto/query.dto';
+import { BrandSearchService } from './services/brand-search.service';
+import { SearchableMixin, withSearch } from '../common/services/searchable-mixin.service';
+import { SearchFilters, SearchResult } from '../common/services/base-search.service';
 
 @Injectable()
-export class BrandsService {
+export class BrandsService implements SearchableMixin<Brand> {
+  // Mixin properties and methods
+  public readonly searchService: BrandSearchService;
+  public readonly indexEntity: (entity: Brand) => Promise<void>;
+  public readonly removeEntityFromIndex: (id: string | number) => Promise<void>;
+  public readonly elasticSearch: (storeId: string, query: string, filters: SearchFilters, userId: string) => Promise<SearchResult<Brand>>;
+
   constructor(
     @InjectRepository(Brand)
     private readonly brandRepository: Repository<Brand>,
-    private readonly storesService: StoresService,
-  ) {}
+    public readonly storesService: StoresService,
+    brandSearchService: BrandSearchService,
+  ) {
+    // Apply search mixin
+    const searchMixin = withSearch<Brand>(brandSearchService);
+    this.searchService = brandSearchService;
+    this.indexEntity = searchMixin.indexEntity!;
+    this.removeEntityFromIndex = searchMixin.removeEntityFromIndex!;
+    this.elasticSearch = searchMixin.elasticSearch!;
+  }
 
   async create(createBrandDto: CreateBrandDto, userId: string): Promise<Brand> {
     // Verify that the store belongs to the user
@@ -25,7 +42,12 @@ export class BrandsService {
       productsCount: 0,
     });
 
-    return this.brandRepository.save(brand);
+    const savedBrand = await this.brandRepository.save(brand);
+    
+    // Index in Elasticsearch
+    await this.indexEntity(savedBrand);
+    
+    return savedBrand;
   }
 
   async findAll(storeId: string, userId: string): Promise<Brand[]> {
@@ -65,13 +87,20 @@ export class BrandsService {
     
     // Update brand
     Object.assign(brand, updateBrandDto);
+    const updatedBrand = await this.brandRepository.save(brand);
     
-    return this.brandRepository.save(brand);
+    // Reindex in Elasticsearch
+    await this.indexEntity(updatedBrand);
+    
+    return updatedBrand;
   }
 
   async remove(id: number, storeId: string, userId: string): Promise<void> {
     const brand = await this.findOne(id, storeId, userId);
     await this.brandRepository.remove(brand);
+    
+    // Remove from Elasticsearch
+    await this.removeEntityFromIndex(id);
   }
 
   async updateProductsCount(id: number, storeId: string, userId: string, increment: boolean = true): Promise<Brand> {
@@ -83,11 +112,20 @@ export class BrandsService {
       brand.productsCount = Math.max(0, brand.productsCount - 1);
     }
     
-    return this.brandRepository.save(brand);
+    const updatedBrand = await this.brandRepository.save(brand);
+    
+    // Reindex in Elasticsearch
+    await this.indexEntity(updatedBrand);
+    
+    return updatedBrand;
   }
 
-  async queryBrands(dto: QueryDto) {
+  async queryBrands(storeId: string, dto: QueryDto, userId: string): Promise<Brand[]> {
+    // Verify that the store belongs to the user
+    await this.storesService.findOne(storeId, userId);
+
     const qb = this.brandRepository.createQueryBuilder('brand');
+    qb.where('brand.storeId = :storeId', { storeId });
 
     // Filters
     dto.filters.forEach((filter, index) => {
@@ -125,10 +163,7 @@ export class BrandsService {
     return qb.getMany();
   }
 
-  async textSearchBrands(
-    storeId: string,
-    search: string,
-    userId: string): Promise<Brand[]> {
+  async textSearchBrands(storeId: string, search: string, userId: string): Promise<Brand[]> {
     // First verify the store belongs to the user
     await this.storesService.findOne(storeId, userId);
 
