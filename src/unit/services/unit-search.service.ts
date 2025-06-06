@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { BaseSearchService } from '../../common/services/base-search.service';
 import { Unit } from '../entities/unit.entity';
+import { CacheEvict } from '../../cache/decorators';
 
 @Injectable()
 export class UnitSearchService extends BaseSearchService<Unit> {
@@ -33,6 +34,9 @@ export class UnitSearchService extends BaseSearchService<Unit> {
     };
   }
 
+  @CacheEvict({
+    patternGenerator: (storeId) => `search:units:*`,
+  })
   async reindexByStore(storeId: string): Promise<void> {
     const units = await this.unitRepository.find({
       where: { storeId },

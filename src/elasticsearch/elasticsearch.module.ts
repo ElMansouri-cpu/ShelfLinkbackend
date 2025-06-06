@@ -9,7 +9,6 @@ import { CategoriesModule } from '../categories/categories.module';
 import { OrdersModule } from '../orders/orders.module';
 import { UnitModule } from '../unit/unit.module';
 import { ProductsModule } from '../products/products.module';
-import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -22,7 +21,6 @@ import { UsersModule } from '../users/users.module';
     forwardRef(() => OrdersModule),
     forwardRef(() => UnitModule),
     forwardRef(() => ProductsModule),
-    forwardRef(() => UsersModule),
   ],
   providers: [SearchManagerService, StartupIndexerService],
   exports: [SearchManagerService, ElasticsearchModule],

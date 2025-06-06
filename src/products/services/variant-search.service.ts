@@ -4,6 +4,7 @@ import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Variant } from '../entities/variant.entity';
+import { Cacheable, CacheEvict, CachePatterns } from '../../cache/decorators';
 
 @Injectable()
 export class VariantSearchService {
@@ -84,6 +85,13 @@ export class VariantSearchService {
     };
   }
 
+  /**
+   * Index variant with cache invalidation
+   * Clears search caches when variant is indexed
+   */
+  @CacheEvict({
+    patternGenerator: (variant) => `search:variants:*`,
+  })
   async indexVariant(variant: Variant) {
     const flattenedVariant = await this.flattenVariant(variant);
     return this.esService.index({
@@ -93,11 +101,20 @@ export class VariantSearchService {
     });
   }
 
+  /**
+   * Remove variant with cache invalidation
+   */
+  @CacheEvict({
+    patternGenerator: (id) => `search:variants:*`,
+  })
   async removeVariant(id: string) {
     return this.esService.delete({ index: this.index, id });
   }
 
   // Re-index variants when related entities are updated
+  @CacheEvict({
+    patternGenerator: (storeId) => `search:variants:*`,
+  })
   async reindexVariantsByStore(storeId: string) {
     const variants = await this.variantRepository.find({
       where: { storeId },
@@ -109,6 +126,9 @@ export class VariantSearchService {
     }
   }
 
+  @CacheEvict({
+    patternGenerator: (brandId) => `search:variants:*`,
+  })
   async reindexVariantsByBrand(brandId: string) {
     const variants = await this.variantRepository.find({
       where: { brandId },
@@ -120,6 +140,9 @@ export class VariantSearchService {
     }
   }
 
+  @CacheEvict({
+    patternGenerator: (categoryId) => `search:variants:*`,
+  })
   async reindexVariantsByCategory(categoryId: string) {
     const variants = await this.variantRepository.find({
       where: { categoryId },
@@ -131,6 +154,9 @@ export class VariantSearchService {
     }
   }
 
+  @CacheEvict({
+    patternGenerator: (providerId) => `search:variants:*`,
+  })
   async reindexVariantsByProvider(providerId: string) {
     const variants = await this.variantRepository.find({
       where: { providerId },
@@ -142,6 +168,9 @@ export class VariantSearchService {
     }
   }
 
+  @CacheEvict({
+    patternGenerator: (unitId) => `search:variants:*`,
+  })
   async reindexVariantsByUnit(unitId: string) {
     const variants = await this.variantRepository.find({
       where: { unitId },
@@ -153,6 +182,9 @@ export class VariantSearchService {
     }
   }
 
+  @CacheEvict({
+    patternGenerator: (taxId) => `search:variants:*`,
+  })
   async reindexVariantsByTax(taxId: string) {
     const variants = await this.variantRepository
       .createQueryBuilder('variant')
@@ -170,6 +202,18 @@ export class VariantSearchService {
     }
   }
 
+  /**
+   * Search variants with comprehensive caching
+   * Cache varies by query, pagination, and filters
+   */
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (query, filters = {}) => {
+      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:variants:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
+    },
+  })
   async searchVariants(query: string, filters: Record<string, any> = {}) {
     const { q, page = 1, limit = 50, ...cleanFilters } = filters;
     const from = (Number(page) - 1) * Number(limit);

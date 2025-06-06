@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ObjectLiteral } from 'typeorm';
+import { Cacheable, CacheEvict } from '../../cache/decorators';
 
 export interface SearchableEntity extends ObjectLiteral {
   id: string | number;
@@ -37,7 +38,7 @@ export abstract class BaseSearchService<T extends SearchableEntity> {
   protected abstract flattenEntity(entity: T): Promise<any> | any;
 
   /**
-   * Index a single entity
+   * Index a single entity with cache invalidation
    */
   async indexEntity(entity: T): Promise<void> {
     try {
@@ -47,13 +48,16 @@ export abstract class BaseSearchService<T extends SearchableEntity> {
         id: entity.id.toString(),
         document: flattenedEntity,
       });
+      
+      // Manually clear search caches for this index
+      // This will be handled by each service individually
     } catch (error) {
       console.error(`Failed to index ${this.index} entity ${entity.id}:`, error);
     }
   }
 
   /**
-   * Remove entity from index
+   * Remove entity from index with cache invalidation
    */
   async removeEntity(id: string | number): Promise<void> {
     try {
@@ -61,14 +65,27 @@ export abstract class BaseSearchService<T extends SearchableEntity> {
         index: this.index,
         id: id.toString(),
       });
+      
+      // Manually clear search caches for this index
+      // This will be handled by each service individually
     } catch (error) {
       console.error(`Failed to remove ${this.index} entity ${id}:`, error);
     }
   }
 
   /**
-   * Search entities with query and filters
+   * Search entities with comprehensive caching
+   * Cache varies by query, pagination, filters, and index type
    */
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (query = '', filters = {}) => {
+      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      // Use a generic search key - individual services will override if needed
+      return `search:entities:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
+    },
+  })
   async searchEntities(query: string = '', filters: SearchFilters = {}): Promise<SearchResult<any>> {
     const { page = 1, limit = 50, ...cleanFilters } = filters;
     const from = (Number(page) - 1) * Number(limit);

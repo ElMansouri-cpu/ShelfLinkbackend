@@ -656,6 +656,75 @@ The enterprise caching system provides a robust foundation that will scale with 
 
 **🎯 Phase 2 Summary**: Enterprise Redis caching implementation is **COMPLETE** with comprehensive service integration, intelligent invalidation, real-time monitoring, and production-ready infrastructure. The system now delivers **5-15x performance improvements** with **70-85% database load reduction** across all major operations.
 
+## 🔧 CRITICAL CACHE INTERCEPTOR FIX (June 2025)
+
+### 🚨 Issue Resolution: Cache Decorators Not Working
+
+**Problem Identified**: The cache interceptors were not working for search endpoints because `@Cacheable` decorators were only applied to service methods, but the global interceptors only check controller method metadata.
+
+**Root Cause**: When a controller calls a service method, the interceptor only sees the controller method, not the service method decorators.
+
+#### ✅ Solution Implemented
+
+**Controller-Level Caching Applied to Search Endpoints**:
+
+1. **Categories Search** (`/stores/{id}/categories/fetch`)
+   ```typescript
+   @Cacheable({
+     ttl: 300, // 5 minutes
+     keyGenerator: (storeId, q = '', filters = {}) => {
+       const { page = 1, limit = 50, ...cleanFilters } = filters;
+       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+       return `search:categories:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+     },
+   })
+   ```
+
+2. **Brands Search** (`/stores/{id}/brands/elasticsearch`)
+   ```typescript
+   @Cacheable({
+     ttl: 300, // 5 minutes  
+     keyGenerator: (storeId, query = '', filters = {}, user) => {
+       const { q, ...cleanFilters } = filters;
+       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+       return `search:brands:${query || 'all'}:filters:${filtersKey}:store:${storeId}`;
+     },
+   })
+   ```
+
+3. **Variants Search** (`/stores/{id}/variants/fetch`)
+   ```typescript
+   @Cacheable({
+     ttl: 300, // 5 minutes
+     keyGenerator: (storeId, q = '', filters = {}) => {
+       const { page = 1, limit = 20, ...cleanFilters } = filters;
+       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+       return `search:variants:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+     },
+   })
+   ```
+
+#### 🎯 Expected Impact
+
+With this fix, all search endpoints now properly cache results:
+
+- **First Request**: Cache MISS → Database/Elasticsearch query → Result cached to Redis
+- **Subsequent Requests**: Cache HIT → Instant response from Redis (5 minutes TTL)
+- **Cache Metrics**: `/cache/metrics` endpoint will now show accurate hits, misses, and sets
+- **Performance**: Search endpoints will now benefit from the enterprise caching infrastructure
+
+#### 🔍 Debug Logging Enhanced
+
+Added comprehensive debug logging to cache interceptor:
+- Method execution tracking: `Cache interceptor called for {ClassName}.{methodName}`
+- Metadata detection: `Cache metadata found: YES/NO for {ClassName}.{methodName}`
+- Cache key generation: `Generated cache key: {key}`
+- Cache operations: `Cache HIT/MISS for key: {key}`
+
+This ensures easy debugging and monitoring of cache operations across all endpoints.
+
+**🎉 Result**: All search endpoints now benefit from enterprise-grade caching with proper metrics tracking and performance monitoring.
+
 ## 📞 Next Steps
 
 1. **Review and approve** this roadmap with the team

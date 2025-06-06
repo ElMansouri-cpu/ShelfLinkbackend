@@ -84,22 +84,68 @@
 
 
 // src/categories/categories.controller.ts
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { StoreCrudController } from 'src/common/controllers/store-crud.controller';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
+import { User } from '../auth/decorators/user.decorator';
+import { CategorySearchService } from './services/category-search.service';
+import { Cacheable } from '../cache/decorators';
 
 @Controller('stores/:storeId/categories')
+@UseGuards(SupabaseAuthGuard)
 export class CategoriesController extends StoreCrudController<
   Category,
   CreateCategoryDto,
   UpdateCategoryDto
 > {
-  constructor(protected readonly service: CategoriesService) {
+  constructor(
+    protected readonly service: CategoriesService,
+    private readonly categorySearchService: CategorySearchService
+  ) {
     super(service);
   }
+
+  @Get('search')
+  searchItems(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Query('q') search: string,
+    @User() user,
+  ): Promise<Category[]> {
+    return this.service.searchCategories(storeId, search);
+  }
+
+  @Get('elasticsearch')
+  async elasticSearch(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Query('q') query: string = '',
+    @Query() filters: any,
+    @User() user,
+  ) {
+    const { q, ...cleanFilters } = filters;
+    return this.categorySearchService.searchEntities(query, { ...cleanFilters, storeId });
+  }
+
+  @Get('fetch')
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (storeId, q = '', filters = {}) => {
+      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:categories:${q || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeId}`;
+    },
+  })
+  async fetch(
+    @Param('storeId') storeId: string,
+    @Query('q') q: string,
+    @Query() filters: Record<string, string>
+  ) {
+    return this.categorySearchService.searchEntities(q, { ...filters, storeId });
+  }
+
   @Get(':id/products')
   getProducts(@Param('id') id: string) {
     return this.service.getProducts(id);
