@@ -79,12 +79,11 @@ export abstract class BaseSearchService<T extends SearchableEntity> {
    */
   @Cacheable({
     ttl: 300, // 5 minutes for search results
-    keyGenerator: function(query = '', filters = {}) {
+    keyGenerator: (query = '', filters = {}) => {
       const { page = 1, limit = 50, ...cleanFilters } = filters;
       const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      // Use the service instance to get the index name
-      const indexName = (this as any).index || 'unknown';
-      return `search:${indexName}:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
+      // Use a generic search key - individual services will override if needed
+      return `search:entities:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
     },
   })
   async searchEntities(query: string = '', filters: SearchFilters = {}): Promise<SearchResult<any>> {

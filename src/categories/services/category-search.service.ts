@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { BaseSearchService } from '../../common/services/base-search.service';
 import { Category } from '../entities/category.entity';
-import { CacheEvict } from '../../cache/decorators';
+import { CacheEvict, Cacheable } from '../../cache/decorators';
 
 @Injectable()
 export class CategorySearchService extends BaseSearchService<Category> {
@@ -50,6 +50,21 @@ export class CategorySearchService extends BaseSearchService<Category> {
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     };
+  }
+
+  /**
+   * Override searchEntities with category-specific caching
+   */
+  @Cacheable({
+    ttl: 300, // 5 minutes for search results
+    keyGenerator: (query = '', filters = {}) => {
+      const { page = 1, limit = 50, ...cleanFilters } = filters;
+      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+      return `search:categories:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
+    },
+  })
+  async searchEntities(query: string = '', filters: any = {}): Promise<any> {
+    return super.searchEntities(query, filters);
   }
 
   @CacheEvict({

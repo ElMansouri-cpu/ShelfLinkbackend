@@ -1,10 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, Inject } from '@nestjs/common';
 import { BrandSearchService } from '../../brands/services/brand-search.service';
 import { CategorySearchService } from '../../categories/services/category-search.service';
 import { OrderSearchService } from '../../orders/services/order-search.service';
 import { UnitSearchService } from '../../unit/services/unit-search.service';
 import { TaxSearchService } from '../../products/services/tax-search.service';
-import { UserSearchService } from '../../users/services/user-search.service';
 import { VariantSearchService } from '../../products/services/variant-search.service';
 import { Cacheable, CacheEvict, CachePatterns } from '../../cache/decorators';
 
@@ -16,7 +15,6 @@ export class SearchManagerService {
     private readonly orderSearchService: OrderSearchService,
     private readonly unitSearchService: UnitSearchService,
     private readonly taxSearchService: TaxSearchService,
-    private readonly userSearchService: UserSearchService,
     private readonly variantSearchService: VariantSearchService,
   ) {}
 
@@ -34,22 +32,8 @@ export class SearchManagerService {
       this.orderSearchService.reindexByStore(storeId),
       this.unitSearchService.reindexByStore(storeId),
       this.taxSearchService.reindexByStore(storeId),
-      this.userSearchService.reindexByStore(storeId),
       this.variantSearchService.reindexVariantsByStore(storeId),
     ]);
-  }
-
-  /**
-   * Reindex all entities for a specific user with cache invalidation
-   */
-  @CacheEvict({
-    patternGenerator: (userId) => `search:*:*:${userId}*`,
-  })
-  async reindexUser(userId: string): Promise<void> {
-    await Promise.all([
-      this.orderSearchService.reindexByUser?.(userId),
-      this.userSearchService.reindexByUser?.(userId),
-    ].filter(Boolean));
   }
 
   /**
