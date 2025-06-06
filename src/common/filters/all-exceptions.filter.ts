@@ -5,45 +5,43 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { ErrorResponse } from './http-exception.filter';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: any, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
-    
+    const reply = ctx.getResponse<FastifyReply>();
+    const request = ctx.getRequest<FastifyRequest>();
+
     const errorResponse: ErrorResponse = {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
       message: 'Internal server error',
-      error: exception?.constructor?.name || 'UnknownError',
+      error: 'UnhandledException',
       requestId: this.generateRequestId(),
     };
 
-    // Log the full error details
+    // Log error details
     this.logger.error(
-      `Unhandled Exception: ${exception?.message || 'Unknown error'}`,
+      `Unhandled Exception: ${HttpStatus.INTERNAL_SERVER_ERROR}`,
       {
         requestId: errorResponse.requestId,
         path: request.url,
         method: request.method,
-        stack: exception?.stack,
-        exception: exception,
-        body: request.body,
-        query: request.query,
-        params: request.params,
-        headers: request.headers,
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
+        exception: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : undefined,
       },
     );
 
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(errorResponse);
+    reply.status(HttpStatus.INTERNAL_SERVER_ERROR).send(errorResponse);
   }
 
   private generateRequestId(): string {

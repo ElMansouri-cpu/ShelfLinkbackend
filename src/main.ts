@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AppConfigService } from './config/config.service';
@@ -7,10 +8,12 @@ import { DatabaseExceptionFilter } from './common/filters/database-exception.fil
 import { ElasticsearchExceptionFilter } from './common/filters/elasticsearch-exception.filter';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { MetricsInterceptor } from './monitoring/interceptors/metrics.interceptor';
-import helmet from 'helmet';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ logger: true })
+  );
   
   // Get configuration service
   const configService = app.get(AppConfigService);
@@ -18,15 +21,14 @@ async function bootstrap() {
   // Get monitoring interceptor
   const metricsInterceptor = app.get(MetricsInterceptor);
   
-  // Security middleware
-  app.use(helmet({
+  // Register Fastify plugins
+  await app.register(require('@fastify/helmet'), {
     crossOriginEmbedderPolicy: false, // Disable for development
     contentSecurityPolicy: configService.isProduction ? undefined : false,
-  }));
+  });
   
-  // CORS configuration
-  app.enableCors({
-    origin: configService.isDevelopment ? '*' : [configService.frontendUrl],
+  await app.register(require('@fastify/cors'), {
+    origin: configService.isDevelopment ? true : [configService.frontendUrl],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -64,6 +66,7 @@ async function bootstrap() {
   console.log(`🔄 Redis: ${configService.redisHost}:${configService.redisPort}`);
   console.log(`📊 Monitoring: http://localhost:${port}/monitoring/metrics`);
   console.log(`❤️  Health Check: http://localhost:${port}/health`);
+  console.log(`⚡ Server: Fastify (High Performance)`);
 }
 
 bootstrap().catch(err => {
