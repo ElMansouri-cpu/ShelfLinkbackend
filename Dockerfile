@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
@@ -26,13 +26,13 @@ ENV NODE_ENV=production
 
 # Copy package files and install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --only=production --legacy-peer-deps
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Optional: Copy .env if your app uses it at runtime (remove if not needed)
-# COPY .env .env
+# Copy production environment file
+COPY .env.production .env
 
 # Create a non-root user and set ownership
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
@@ -44,4 +44,34 @@ USER appuser
 EXPOSE 1919
 
 # Start the app directly with node (faster than npm run)
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
+
+# Development stage
+FROM node:20-alpine AS development
+
+WORKDIR /app
+
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
+# Set environment to development
+ENV NODE_ENV=development
+
+# Copy package files and install ALL dependencies (including devDependencies)
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+
+# Copy source code
+COPY . .
+
+# Create a non-root user and set ownership
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /app
+
+USER appuser
+
+# Expose the port your app listens on
+EXPOSE 1919
+
+# Start the app in development mode
+CMD ["npm", "run", "start:dev"]
