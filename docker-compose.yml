@@ -1,12 +1,14 @@
 version: '3.8'
 
 services:
+  # Application Service
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     ports:
-      - "${PORT}:1919"
+      - "${PORT:-1919}:1919"
     environment:
       - NODE_ENV
       - DATABASE_URL
@@ -17,11 +19,21 @@ services:
       - JWT_EXPIRES_IN
       - FRONTEND_URL
       - PORT
+      - ELASTICSEARCH_NODE=http://elasticsearch:9200
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=store_redis_password_123
+      - REDIS_DB=0
     env_file:
       - .env
     restart: unless-stopped
     networks:
       - app-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -30,8 +42,133 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+
+  # Elasticsearch Service
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: store-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - cluster.name=store-management
+      - node.name=es-node-1
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - http.cors.enabled=true
+      - http.cors.allow-origin="*"
+      - http.cors.allow-headers="X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization"
+      - http.cors.allow-credentials=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Redis Service
+  redis:
+    image: redis:7-alpine
+    container_name: store-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --tcp-keepalive 300
+      --timeout 0
+      --requirepass store_redis_password_123
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "store_redis_password_123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    sysctls:
+      - net.core.somaxconn=65535
+
+  # Redis Commander (Optional Redis Web UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: store-redis-commander
+    hostname: redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+      - REDIS_PASSWORD=store_redis_password_123
+    networks:
+      - app-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Elasticsearch Head (Optional Elasticsearch Web UI)
+  elasticsearch-head:
+    image: mobz/elasticsearch-head:5
+    container_name: store-elasticsearch-head
+    ports:
+      - "9100:9100"
+    networks:
+      - app-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - tools
+
+volumes:
+  elasticsearch-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/elasticsearch/data
+  redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker/redis/data
 
 networks:
   app-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
