@@ -15,21 +15,47 @@ export class VariantController extends StoreCrudController<Variant, CreateVarian
   
   @Get('fetch')
   @Cacheable({
-    ttl: 300, // 5 minutes for search results
-    keyGenerator: (storeId, q = '', filters = {}) => {
-      // Ensure we get string values and not objects
-      const queryString = String(q || '');
-      const storeIdString = String(storeId || '');
-      const { page = 1, limit = 20, ...cleanFilters } = filters || {};
-      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:variants:${queryString || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeIdString}`;
-    },
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const query = request.query;
+      
+      // Build a unique key based on all query parameters
+      const keyParts = [
+        `store=${storeId}`,
+        `q=${query.q || ''}`,
+        `page=${query.page || '1'}`,
+        `limit=${query.limit || '20'}`
+      ];
+
+      // Add any additional filters
+      const filters = Object.entries(query)
+        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`);
+
+      if (filters.length > 0) {
+        keyParts.push(`filters=${filters.join('|')}`);
+      }
+
+      return `search:variants:${keyParts.join(':')}`;
+    }
   })
   async elasticsearch(
     @Param('storeId') storeId: string,
     @Query('q') q: string,
-    @Query() filters: Record<string, string>
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query() rawFilters: Record<string, string>
   ) {
-    return this.variantSearchService.searchVariants(q, { ...filters, 'store.id': storeId });
+    const { q: _, page: __, limit: ___, ...filters } = rawFilters;
+  
+    return this.variantSearchService.searchVariants(q, {
+      ...filters,
+      page: Number(page),
+      limit: Number(limit),
+      'store.id': storeId,
+    });
   }
+  
 } 
