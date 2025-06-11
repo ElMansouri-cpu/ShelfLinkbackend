@@ -7,6 +7,7 @@ import { User } from '../auth/decorators/user.decorator';
 import { QueryDto } from 'src/common/dto/query.dto';
 import { Provider } from './entities/provider.entity';
 import { ParseFloatPipe } from '@nestjs/common';
+import { Cacheable } from '../cache/decorators';
 
 @Controller('stores/:storeId/providers')
 @UseGuards(SupabaseAuthGuard)
@@ -14,6 +15,22 @@ export class ProvidersController {
   constructor(private readonly providersService: ProvidersService) {}
 
   @Get('nearby')
+  @Cacheable({
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const query = request.query;
+      
+      const keyParts = [
+        `store=${storeId}`,
+        `lat=${query.lat}`,
+        `lng=${query.lng}`,
+        `radius=${query.radius}`
+      ];
+
+      return `search:providers:nearby:${keyParts.join(':')}`;
+    }
+  })
   findNearby(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
     @Query('lat', new ParseFloatPipe()) latitude: number,
@@ -79,7 +96,25 @@ export class ProvidersController {
   }
 
   @Post('filterquery')
-  queryProviders(@Body() queryDto: QueryDto) {
+  @Cacheable({
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const body = request.body;
+      
+      const keyParts = [
+        `store=${storeId}`,
+        `query=${JSON.stringify(body)}`
+      ];
+
+      return `search:providers:query:${keyParts.join(':')}`;
+    }
+  })
+  queryProviders(
+    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Body() queryDto: QueryDto,
+    @User() user,
+  ) {
     return this.providersService.queryProviders(queryDto);
   }
 } 

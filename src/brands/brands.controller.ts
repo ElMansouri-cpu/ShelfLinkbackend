@@ -15,15 +15,29 @@ export class BrandsController {
 
   @Get('elasticsearch')
   @Cacheable({
-    ttl: 300, // 5 minutes for search results
-    keyGenerator: (storeId, query = '', filters = {}, user) => {
-      // Ensure we get string values and not objects
-      const queryString = String(query || '');
-      const storeIdString = String(storeId || '');
-      const { q, ...cleanFilters } = filters || {};
-      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:brands:${queryString || 'all'}:filters:${filtersKey}:store:${storeIdString}`;
-    },
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const query = request.query;
+      
+      const keyParts = [
+        `store=${storeId}`,
+        `q=${query.q || ''}`,
+        `page=${query.page || '1'}`,
+        `limit=${query.limit || '20'}`
+      ];
+
+      const filters = Object.entries(query)
+        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`);
+
+      if (filters.length > 0) {
+        keyParts.push(`filters=${filters.join('|')}`);
+      }
+
+      return `search:brands:${keyParts.join(':')}`;
+    }
   })
   async elasticSearch(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,

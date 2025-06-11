@@ -110,6 +110,31 @@ export class CategoriesController extends StoreCrudController<
   }
 
   @Get('elasticsearch')
+  @Cacheable({
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const query = request.query;
+      
+      const keyParts = [
+        `store=${storeId}`,
+        `q=${query.q || ''}`,
+        `page=${query.page || '1'}`,
+        `limit=${query.limit || '20'}`
+      ];
+
+      const filters = Object.entries(query)
+        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`);
+
+      if (filters.length > 0) {
+        keyParts.push(`filters=${filters.join('|')}`);
+      }
+
+      return `search:categories:${keyParts.join(':')}`;
+    }
+  })
   async elasticSearch(
     @Param('storeId', new ParseUUIDPipe()) storeId: string,
     @Query('q') query: string = '',
@@ -122,15 +147,29 @@ export class CategoriesController extends StoreCrudController<
 
   @Get('fetch')
   @Cacheable({
-    ttl: 300, // 5 minutes for search results
-    keyGenerator: (storeId, q = '', filters = {}) => {
-      // Ensure we get string values and not objects
-      const queryString = String(q || '');
-      const storeIdString = String(storeId || '');
-      const { page = 1, limit = 50, ...cleanFilters } = filters || {};
-      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:categories:${queryString || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}:store:${storeIdString}`;
-    },
+    ttl: 300,
+    keyGenerator: (request: any) => {
+      const storeId = request.params.storeId;
+      const query = request.query;
+      
+      const keyParts = [
+        `store=${storeId}`,
+        `q=${query.q || ''}`,
+        `page=${query.page || '1'}`,
+        `limit=${query.limit || '20'}`
+      ];
+
+      const filters = Object.entries(query)
+        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `${key}=${value}`);
+
+      if (filters.length > 0) {
+        keyParts.push(`filters=${filters.join('|')}`);
+      }
+
+      return `search:categories:${keyParts.join(':')}`;
+    }
   })
   async fetch(
     @Param('storeId') storeId: string,
