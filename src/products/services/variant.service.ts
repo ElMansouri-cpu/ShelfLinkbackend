@@ -173,7 +173,6 @@ export class VariantService extends StoreCrudService<Variant> {
   /**
    * Search variants with search result caching
    */
-  @Cacheable(CachePatterns.Search((storeId, searchTerm) => `search:variants:${storeId}:${searchTerm}`))
   async searchVariants(storeId: string, searchTerm: string, limit = 20): Promise<Variant[]> {
     return this.repository
       .createQueryBuilder('variant')
@@ -190,50 +189,50 @@ export class VariantService extends StoreCrudService<Variant> {
   /**
    * Get low stock variants with caching
    */
-  @Cacheable({
-    ttl: 180, // 3 minutes (more frequent updates for stock)
-    keyGenerator: (storeId, threshold) => `store:${storeId}:low_stock:${threshold}`,
-  })
-  async getLowStockVariants(storeId: string, threshold = 10): Promise<Variant[]> {
-    return this.repository
-      .createQueryBuilder('variant')
-      .where('variant.storeId = :storeId', { storeId })
-      .andWhere('variant.stock <= :threshold', { threshold })
-      .andWhere('variant.trackStock = true')
-      .orderBy('variant.stock', 'ASC')
-      .limit(50)
-      .getMany();
-  }
+  // @Cacheable({
+  //   ttl: 180, // 3 minutes (more frequent updates for stock)
+  //   keyGenerator: (storeId, threshold) => `store:${storeId}:low_stock:${threshold}`,
+  // })
+  // async getLowStockVariants(storeId: string, threshold = 10): Promise<Variant[]> {
+  //   return this.repository
+  //     .createQueryBuilder('variant')
+  //     .where('variant.storeId = :storeId', { storeId })
+  //     .andWhere('variant.stock <= :threshold', { threshold })
+  //     .andWhere('variant.trackStock = true')
+  //     .orderBy('variant.stock', 'ASC')
+  //     .limit(50)
+  //     .getMany();
+  // }
 
   /**
    * Get variant statistics with caching
    */
-  @Cacheable({
-    ttl: 900, // 15 minutes
-    keyGenerator: (storeId) => `store:${storeId}:variant_stats`,
-  })
-  async getVariantStatistics(storeId: string): Promise<{
-    totalVariants: number;
-    activeVariants: number;
-    lowStockVariants: number;
-    averagePrice: number;
-  }> {
-    const result = await this.repository
-      .createQueryBuilder('variant')
-      .select([
-        'COUNT(*) as totalVariants',
-        'COUNT(CASE WHEN variant.isActive = true THEN 1 END) as activeVariants',
-        'COUNT(CASE WHEN variant.stock <= 10 AND variant.trackStock = true THEN 1 END) as lowStockVariants',
-        'AVG(variant.price) as averagePrice',
-      ])
-      .where('variant.storeId = :storeId', { storeId })
-      .getRawOne();
+  // @Cacheable({
+  //   ttl: 900, // 15 minutes
+  //   keyGenerator: (storeId) => `store:${storeId}:variant_stats`,
+  // })
+  // async getVariantStatistics(storeId: string): Promise<{
+  //   totalVariants: number;
+  //   activeVariants: number;
+  //   lowStockVariants: number;
+  //   averagePrice: number;
+  // }> {
+  //   const result = await this.repository
+  //     .createQueryBuilder('variant')
+  //     .select([
+  //       'COUNT(*) as totalVariants',
+  //       'COUNT(CASE WHEN variant.isActive = true THEN 1 END) as activeVariants',
+  //       'COUNT(CASE WHEN variant.stock <= 10 AND variant.trackStock = true THEN 1 END) as lowStockVariants',
+  //       'AVG(variant.price) as averagePrice',
+  //     ])
+  //     .where('variant.storeId = :storeId', { storeId })
+  //     .getRawOne();
 
-    return {
-      totalVariants: parseInt(result.totalVariants) || 0,
-      activeVariants: parseInt(result.activeVariants) || 0,
-      lowStockVariants: parseInt(result.lowStockVariants) || 0,
-      averagePrice: parseFloat(result.averagePrice) || 0,
-    };
-  }
+  //   return {
+  //     totalVariants: parseInt(result.totalVariants) || 0,
+  //     activeVariants: parseInt(result.activeVariants) || 0,
+  //     lowStockVariants: parseInt(result.lowStockVariants) || 0,
+  //     averagePrice: parseFloat(result.averagePrice) || 0,
+  //   };
+  // }
 } 

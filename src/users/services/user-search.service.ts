@@ -10,8 +10,8 @@ import { CacheEvict } from '../../cache/decorators';
 export class UserSearchService extends BaseSearchService<User> {
   protected readonly index = 'users';
   protected readonly searchFields = [
-    'username^3',
-    'email^3',
+    'username',
+    'email',
     'subscriptionTier'
   ];
 
@@ -21,6 +21,9 @@ export class UserSearchService extends BaseSearchService<User> {
     private readonly userRepository: Repository<User>,
   ) {
     super(esService);
+    this.createIndexIfNotExists().catch(error => {
+      console.error('Failed to create index:', error);
+    });
   }
 
   protected async flattenEntity(user: User): Promise<any> {
@@ -40,6 +43,7 @@ export class UserSearchService extends BaseSearchService<User> {
     patternGenerator: (storeId) => `search:users:*`,
   })
   async reindexByStore(storeId: string): Promise<void> {
+    await this.recreateIndex();
     // Users are not directly tied to stores, but we can reindex users who own the store
     const users = await this.userRepository
       .createQueryBuilder('user')

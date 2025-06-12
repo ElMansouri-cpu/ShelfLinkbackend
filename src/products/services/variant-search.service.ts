@@ -206,14 +206,14 @@ export class VariantSearchService {
    * Search variants with comprehensive caching
    * Cache varies by query, pagination, and filters
    */
-  @Cacheable({
-    ttl: 300, // 5 minutes for search results
-    keyGenerator: (query, filters = {}) => {
-      const { page = 1, limit = 50, ...cleanFilters } = filters;
-      const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
-      return `search:variants:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
-    },
-  })
+    // @Cacheable({
+    //   ttl: 300, // 5 minutes for search results
+    //   keyGenerator: (query, filters = {}) => {
+    //     const { page = 1, limit = 50, ...cleanFilters } = filters;
+    //     const filtersKey = Object.keys(cleanFilters).length > 0 ? JSON.stringify(cleanFilters) : 'no-filters';
+    //     return `search:variants:${query || 'all'}:page:${page}:limit:${limit}:filters:${filtersKey}`;
+    //   },
+    // })
   async searchVariants(query: string, filters: Record<string, any> = {}) {
     const { q, page = 1, limit = 50, ...cleanFilters } = filters;
     const from = (Number(page) - 1) * Number(limit);
@@ -224,22 +224,45 @@ export class VariantSearchService {
   
     const shouldQuery = query?.trim()
       ? [
+          // Multi-match for fuzzy text search
           {
             multi_match: {
               query,
               fields: [
-                'name^3',
-                'sku^2',
-                'barcode',
-                'description',
-                'store.name^2',
-                'brand.name^2',
-                'category.name',
+                'name^3',           // Boost name matches
+                'sku^2',           // Boost SKU matches
+                'barcode',         // Regular barcode matches
+                'description',     // Description matches
+                'store.name^2',    // Boost store name matches
+                'brand.name^2',    // Boost brand name matches
+                'category.name^2', // Boost category name matches
+                'provider.name',   // Provider name matches
+                'unit.name'        // Unit name matches
               ],
+              type: 'best_fields' as const,
               fuzziness: 'AUTO',
               operator: 'or' as const,
-            },
+              minimum_should_match: '2<75%',
+              tie_breaker: 0.3
+            }
           },
+          // Wildcard query for substring matching
+          {
+            bool: {
+              should: [
+                { wildcard: { name: { value: `*${query}*` } } },
+                { wildcard: { sku: { value: `*${query}*` } } },
+                { wildcard: { barcode: { value: `*${query}*` } } },
+                { wildcard: { description: { value: `*${query}*` } } },
+                { wildcard: { 'store.name': { value: `*${query}*` } } },
+                { wildcard: { 'brand.name': { value: `*${query}*` } } },
+                { wildcard: { 'category.name': { value: `*${query}*` } } },
+                { wildcard: { 'provider.name': { value: `*${query}*` } } },
+                { wildcard: { 'unit.name': { value: `*${query}*` } } }
+              ],
+              minimum_should_match: 1
+            }
+          }
         ]
       : [];
   
@@ -248,6 +271,7 @@ export class VariantSearchService {
           bool: {
             should: shouldQuery,
             filter: mustFilters,
+            minimum_should_match: 1
           },
         }
       : mustFilters.length
@@ -265,6 +289,10 @@ export class VariantSearchService {
       from,
       size: Number(limit),
       query: queryBody,
+      sort: [
+        { _score: { order: 'desc' } },  // Sort by relevance first
+        { sku: { order: 'asc' } }       // Then alphabetically by SKU
+      ]
     });
 
     // Transform to simplified response format
