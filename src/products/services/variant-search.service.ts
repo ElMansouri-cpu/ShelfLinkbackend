@@ -20,7 +20,6 @@ export class VariantSearchService {
     return {
       id: variant.id,
       name: variant.name,
-      sku: variant.sku,
       barcode: variant.barcode,
       description: variant.description,
       storeId: variant.storeId,
@@ -230,7 +229,6 @@ export class VariantSearchService {
               query,
               fields: [
                 'name^3',           // Boost name matches
-                'sku^2',           // Boost SKU matches
                 'barcode',         // Regular barcode matches
                 'description',     // Description matches
                 'store.name^2',    // Boost store name matches
@@ -251,7 +249,6 @@ export class VariantSearchService {
             bool: {
               should: [
                 { wildcard: { name: { value: `*${query}*` } } },
-                { wildcard: { sku: { value: `*${query}*` } } },
                 { wildcard: { barcode: { value: `*${query}*` } } },
                 { wildcard: { description: { value: `*${query}*` } } },
                 { wildcard: { 'store.name': { value: `*${query}*` } } },
@@ -291,7 +288,7 @@ export class VariantSearchService {
       query: queryBody,
       sort: [
         { _score: { order: 'desc' } },  // Sort by relevance first
-        { sku: { order: 'asc' } }       // Then alphabetically by SKU
+        { 'name.keyword': { order: 'asc' } }  // Then alphabetically by name
       ]
     });
 

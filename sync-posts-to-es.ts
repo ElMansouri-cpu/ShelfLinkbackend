@@ -16,7 +16,6 @@ async function flattenVariant(variant: any) {
     return {
       id: variant.id,
       name: variant.name,
-      sku: variant.sku,
       barcode: variant.barcode,
       description: variant.description,
       storeId: variant.store_id,
@@ -109,8 +108,15 @@ async function syncVariants() {
         mappings: {
           properties: {
             id: { type: 'keyword' },
-            name: { type: 'text' },
-            sku: { type: 'keyword' },
+            name: { 
+              type: 'text',
+              fields: {
+                keyword: {
+                  type: 'keyword',
+                  ignore_above: 256
+                }
+              }
+            },
             barcode: { type: 'keyword' },
             description: { type: 'text' },
             storeId: { type: 'keyword' },
@@ -122,7 +128,13 @@ async function syncVariants() {
                 banner: { type: 'text' },
                 url: { type: 'text' },
                 description: { type: 'text' },
-                location: { type: 'text' },
+                location: {
+                  properties: {
+                    lat: { type: 'float' },
+                    lng: { type: 'float' },
+                    address: { type: 'text' }
+                  }
+                },
                 isPrimary: { type: 'boolean' },
                 productsCount: { type: 'integer' },
                 ordersCount: { type: 'integer' },
