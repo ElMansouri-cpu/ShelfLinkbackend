@@ -23,7 +23,7 @@ export class Category {
   })
   status: 'active' | 'inactive';
 
-  @Column({ default: 0 })
+  @Column({ name: "productsCount", default: 0 })
   productsCount: number;
 
   @Column({ nullable: true })

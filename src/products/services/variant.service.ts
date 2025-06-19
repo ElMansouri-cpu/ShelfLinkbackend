@@ -93,10 +93,16 @@ export class VariantService extends StoreCrudService<Variant> {
   }
 
   /**
-   * Update variant with selective cache eviction
+   * Update variant with comprehensive cache invalidation
    */
   @CacheEvict({
+    patternGenerator: (id, data, whereExtra = {}) => `*:${data.storeId}:*`,
+  })
+  @CacheEvict({
     patternGenerator: (id, data, whereExtra = {}) => `variant:${id}*`,
+  })
+  @CacheEvict({
+    patternGenerator: (id, data, whereExtra = {}) => `search:variants:*`,
   })
   async update(
     id: string | number,
@@ -128,17 +134,21 @@ export class VariantService extends StoreCrudService<Variant> {
         .addAndRemove(taxes, variant.taxes.map(t => t.id));
     }
 
-    // Return the updated variant with all relations
+    // Return the updated variant with ALL relations for proper indexing
     const updatedVariant = await this.repository.findOne({
       where: { id, ...whereExtra } as any,
-      relations: ['taxes']
+      relations: ['store', 'brand', 'category', 'provider', 'unit', 'taxes']
     });
 
     if (!updatedVariant) {
       throw new NotFoundException(`Variant #${id} not found`);
     }
 
+    // Index the updated variant in Elasticsearch
+    console.log(`Indexing updated variant ${updatedVariant.id} in Elasticsearch...`);
     await this.variantSearchService.indexVariant(updatedVariant);
+    console.log(`Successfully indexed variant ${updatedVariant.id}`);
+    
     return updatedVariant;
   }
 
