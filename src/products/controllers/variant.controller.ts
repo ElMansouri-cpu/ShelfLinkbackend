@@ -46,16 +46,64 @@ export class VariantController extends StoreCrudController<Variant, CreateVarian
     @Query('q') q: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
-    @Query() rawFilters: Record<string, string>
+    @Query() rawFilters: Record<string, string | string[]>
   ) {
     const { q: _, page: __, limit: ___, ...filters } = rawFilters;
+    
+    // Convert string arrays to proper format for Elasticsearch and decode URL encoding
+    const processedFilters: Record<string, any> = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        processedFilters[key] = value.map(v => decodeURIComponent(v));
+      } else {
+        processedFilters[key] = decodeURIComponent(value);
+      }
+    });
+    
+    console.log('Original filters:', filters);
+    console.log('Processed filters:', processedFilters);
   
     return this.variantSearchService.searchVariants(q, {
-      ...filters,
+      ...processedFilters,
       page: Number(page),
       limit: Number(limit),
-      'store.id': storeId,
+      storeId: storeId,
     });
   }
   
+  @Get('fetch/refresh')
+  async refreshAndFetch(
+    @Param('storeId') storeId: string,
+    @Query('q') q: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query() rawFilters: Record<string, string | string[]>
+  ) {
+    // Force refresh the index
+    await this.variantSearchService.refreshIndex();
+    
+    const { q: _, page: __, limit: ___, ...filters } = rawFilters;
+    
+    // Convert string arrays to proper format for Elasticsearch and decode URL encoding
+    const processedFilters: Record<string, any> = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        processedFilters[key] = value.map(v => decodeURIComponent(v));
+      } else {
+        processedFilters[key] = decodeURIComponent(value);
+      }
+    });
+  
+    return this.variantSearchService.searchVariants(q, {
+      ...processedFilters,
+      page: Number(page),
+      limit: Number(limit),
+      storeId: storeId,
+    });
+  }
+
+  @Get('debug/indexed')
+  async debugIndexedData(@Param('storeId') storeId: string) {
+    return this.variantSearchService.debugIndexedData(storeId);
+  }
 } 
