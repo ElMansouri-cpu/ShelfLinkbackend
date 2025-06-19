@@ -11,6 +11,7 @@ A robust NestJS-based backend for managing stores, products, and orders with adv
 - 💾 Redis caching for improved performance
 - 📊 Comprehensive metrics and monitoring
 - 🚀 Fastify for high-performance HTTP handling
+- ✨ Standardized database schema with proper case sensitivity
 
 ## Tech Stack
 
@@ -29,6 +30,13 @@ A robust NestJS-based backend for managing stores, products, and orders with adv
 - 📉 **70-85% Database Load Reduction** through intelligent caching
 - 🔍 **80%+ Cache Hit Rate** across all services
 - 💾 **Optimized Memory Usage** with intelligent TTL strategies
+
+## Database Schema Best Practices
+
+- **Column Naming**: Consistent camelCase with quoted identifiers
+- **Triggers**: Standardized naming and proper quoting
+- **Entity Mapping**: TypeORM entities aligned with database schema
+- **Performance**: Optimized triggers and indices
 
 ## Prerequisites
 
