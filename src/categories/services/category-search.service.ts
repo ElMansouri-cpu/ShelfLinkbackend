@@ -5,7 +5,6 @@ import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { BaseSearchService } from '../../common/services/base-search.service';
 import { Category } from '../entities/category.entity';
 import { CacheEvict, Cacheable } from '../../cache/decorators';
-import { QueryDslOperator, QueryDslTextQueryType } from '@elastic/elasticsearch/lib/api/types';
 
 @Injectable()
 export class CategorySearchService extends BaseSearchService<Category> implements OnModuleInit {
@@ -32,6 +31,147 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       console.log('Category search service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize category search service:', error);
+      // Don't throw error to prevent server crash, just log it
+      console.log('Category search service will be available but may need manual reindexing');
+    }
+  }
+
+  protected async createIndexIfNotExists() {
+    try {
+      const indexExists = await this.esService.indices.exists({
+        index: this.index
+      });
+
+      if (!indexExists) {
+        await this.esService.indices.create({
+          index: this.index,
+          body: {
+            settings: {
+              analysis: {
+                filter: {
+                  autocomplete_filter: {
+                    type: 'edge_ngram',
+                    min_gram: 1,
+                    max_gram: 20
+                  }
+                },
+                analyzer: {
+                  autocomplete: {
+                    type: 'custom',
+                    tokenizer: 'standard',
+                    filter: [
+                      'lowercase',
+                      'autocomplete_filter'
+                    ]
+                  }
+                }
+              }
+            },
+            mappings: {
+              properties: {
+                id: {
+                  type: 'long'
+                },
+                name: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                description: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                image: {
+                  type: 'text',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                status: {
+                  type: 'keyword'
+                },
+                productsCount: {
+                  type: 'integer'
+                },
+                parentId: {
+                  type: 'long'
+                },
+                storeId: {
+                  type: 'keyword'
+                },
+                store: {
+                  properties: {
+                    id: {
+                      type: 'keyword'
+                    },
+                    name: {
+                      type: 'text',
+                      analyzer: 'autocomplete',
+                      search_analyzer: 'standard',
+                      fields: {
+                        keyword: {
+                          type: 'keyword',
+                          ignore_above: 256
+                        }
+                      }
+                    },
+                    logo: {
+                      type: 'text'
+                    },
+                    url: {
+                      type: 'text'
+                    },
+                    status: {
+                      type: 'keyword'
+                    }
+                  }
+                },
+                parent: {
+                  properties: {
+                    id: {
+                      type: 'long'
+                    },
+                    name: {
+                      type: 'text',
+                      fields: {
+                        keyword: {
+                          type: 'keyword',
+                          ignore_above: 256
+                        }
+                      }
+                    }
+                  }
+                },
+                createdAt: {
+                  type: 'date'
+                },
+                updatedAt: {
+                  type: 'date'
+                }
+              }
+            }
+          }
+        });
+        console.log(`Created index ${this.index} with proper mapping`);
+      }
+    } catch (error) {
+      console.error(`Failed to create index ${this.index}:`, error);
       throw error;
     }
   }
@@ -39,16 +179,32 @@ export class CategorySearchService extends BaseSearchService<Category> implement
   private async reindexAll() {
     try {
       console.log('Starting reindex of all categories...');
+      
+      // First check if there are any categories in the database
+      const totalCategories = await this.categoryRepository.count();
+      console.log(`Total categories in database: ${totalCategories}`);
+      
+      if (totalCategories === 0) {
+        console.log('No categories found in database, skipping reindex');
+        return;
+      }
+      
       const categories = await this.categoryRepository.find({
         relations: ['store', 'parent'],
       });
       
-      if (categories.length === 0) {
-        console.log('No categories found to index');
-        return;
-      }
-
       console.log(`Found ${categories.length} categories to index`);
+      
+      // Log some sample categories for debugging
+      if (categories.length > 0) {
+        console.log('Sample categories:', categories.slice(0, 3).map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          status: cat.status,
+          storeId: cat.storeId,
+          store: cat.store?.name
+        })));
+      }
       
       // Delete existing index if it exists
       try {
@@ -128,117 +284,213 @@ export class CategorySearchService extends BaseSearchService<Category> implement
     },
   })
   async searchEntities(query: string, filters: Record<string, any> = {}) {
-    const { page = 1, limit = 50, storeId, ...cleanFilters } = filters;
-    const from = (Number(page) - 1) * Number(limit);
-  
-    // Build filter conditions
-    const mustFilters: Array<{ term: Record<string, any> }> = [];
+    try {
+      const { page = 1, limit = 50, storeId, status, q, ...cleanFilters } = filters;
+      const from = (Number(page) - 1) * Number(limit);
     
-    // Add store filter if provided
-    if (storeId) {
-      mustFilters.push({ term: { storeId } });
-    }
-
-    // Add other filters
-    Object.entries(cleanFilters).forEach(([key, val]) => {
-      if (val !== undefined && val !== null) {
-        mustFilters.push({ term: { [key]: val } });
+      // Build filter conditions
+      const mustFilters: Array<any> = [];
+      
+      // Add store filter if provided
+      if (storeId) {
+        mustFilters.push({ term: { storeId } });
       }
-    });
-  
-    // Build search query
-    const shouldQuery = query?.trim()
-      ? [
-          // Exact match with wildcards (highest priority)
-          {
-            bool: {
-              should: [
-                { wildcard: { 'name.keyword': { value: `*${query}*` } } },
-                { wildcard: { 'name.keyword': { value: `${query}*` } } },
-                { wildcard: { 'name.keyword': { value: `*${query}` } } }
-              ],
-              minimum_should_match: 1,
-              boost: 3
-            }
-          },
-          // Prefix match for name
-          {
-            prefix: {
-              'name.keyword': {
-                value: query,
-                boost: 2
+
+      // Add status filter if provided
+      if (status) {
+        mustFilters.push({ term: { status } });
+      }
+
+      // Add other filters (excluding q which is the query parameter)
+      Object.entries(cleanFilters).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && key !== 'q') {
+          mustFilters.push({ term: { [key]: val } });
+        }
+      });
+    
+      // Build search query
+      let queryBody: any;
+      
+      // Use the query parameter from filters if provided, otherwise use the query parameter
+      const searchQuery = q || query;
+      
+      if (searchQuery?.trim()) {
+        // Text search with filters
+        queryBody = {
+          bool: {
+            must: mustFilters,
+            should: [
+              // Exact match with wildcards
+              {
+                wildcard: { 
+                  'name.keyword': { 
+                    value: `*${searchQuery.trim()}*` 
+                  } 
+                }
+              },
+              // Prefix match
+              {
+                prefix: {
+                  'name.keyword': {
+                    value: searchQuery.trim()
+                  }
+                }
+              },
+              // Fuzzy match for name
+              {
+                match: {
+                  name: {
+                    query: searchQuery.trim(),
+                    fuzziness: 'AUTO'
+                  }
+                }
+              },
+              // Match in description
+              {
+                match: {
+                  description: {
+                    query: searchQuery.trim(),
+                    fuzziness: 'AUTO'
+                  }
+                }
+              },
+              // Match in store name
+              {
+                match: {
+                  'store.name': {
+                    query: searchQuery.trim(),
+                    fuzziness: 'AUTO'
+                  }
+                }
               }
-            }
-          },
-          // Fuzzy match for name
-          {
-            match: {
-              name: {
-                query,
-                fuzziness: 'AUTO',
-                boost: 1.5
-              }
-            }
-          },
-          // Match in other fields
-          {
-            multi_match: {
-              query,
-              fields: [
-                'description^1',
-                'store.name^1'
-              ],
-              type: 'best_fields' as QueryDslTextQueryType,
-              fuzziness: 'AUTO',
-              operator: 'or' as QueryDslOperator,
-              minimum_should_match: '2<75%',
-              tie_breaker: 0.3
-            }
+            ],
+            minimum_should_match: 1
           }
-        ]
-      : [];
-  
-    // Construct final query
-    const queryBody = {
-      bool: {
-        must: mustFilters,
-        ...(shouldQuery.length > 0 && {
-          should: shouldQuery,
-          minimum_should_match: 1
-        })
+        };
+      } else {
+        // No text search, just filters
+        queryBody = {
+          bool: {
+            must: mustFilters
+          }
+        };
       }
-    };
-  
-    console.log('Search query:', JSON.stringify(queryBody, null, 2));
-  
-    const response = await this.esService.search({
-      index: this.index,
-      from,
-      size: Number(limit),
-      query: queryBody,
-      sort: [
-        { _score: { order: 'desc' } },
-        { 'name.keyword': { order: 'asc' } }
-      ]
-    });
+    
+      console.log('Search query:', JSON.stringify(queryBody, null, 2));
+      console.log('Search filters:', JSON.stringify(filters, null, 2));
+    
+      const response = await this.esService.search({
+        index: this.index,
+        from,
+        size: Number(limit),
+        query: queryBody,
+        sort: [
+          { _score: { order: 'desc' } },
+          { 'name.keyword': { order: 'asc' } }
+        ]
+      });
 
-    const total = typeof response.hits.total === 'number' 
-      ? response.hits.total 
-      : response.hits.total?.value || 0;
+      const total = typeof response.hits.total === 'number' 
+        ? response.hits.total 
+        : response.hits.total?.value || 0;
 
-    const totalPages = Math.ceil(total / Number(limit));
+      const totalPages = Math.ceil(total / Number(limit));
 
-    return {
-      data: response.hits.hits.map((hit: any) => hit._source),
-      pagination: {
-        total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages,
-        hasNextPage: Number(page) < totalPages,
-        hasPreviousPage: Number(page) > 1,
-      },
-    };
+      console.log(`Search results: ${response.hits.hits.length} hits out of ${total} total`);
+
+      return {
+        data: response.hits.hits.map((hit: any) => hit._source),
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages,
+          hasNextPage: Number(page) < totalPages,
+          hasPreviousPage: Number(page) > 1,
+        },
+      };
+    } catch (error) {
+      console.error('Search error:', error);
+      throw error;
+    }
+  }
+
+  // Debug method to check index status
+  async debugIndex() {
+    try {
+      // Check if index exists
+      const indexExists = await this.esService.indices.exists({ index: this.index });
+      console.log(`Index ${this.index} exists:`, indexExists);
+
+      if (indexExists) {
+        // Get index stats
+        const stats = await this.esService.indices.stats({ index: this.index });
+        console.log(`Index stats:`, stats);
+
+        // Get mapping
+        const mapping = await this.esService.indices.getMapping({ index: this.index });
+        console.log(`Index mapping:`, mapping);
+
+        // Count documents
+        const count = await this.esService.count({ index: this.index });
+        console.log(`Document count:`, count);
+
+        // Get a few sample documents
+        const sample = await this.esService.search({
+          index: this.index,
+          size: 5,
+          query: { match_all: {} }
+        });
+        console.log(`Sample documents:`, sample.hits.hits.map((hit: any) => hit._source));
+      }
+    } catch (error) {
+      console.error('Debug error:', error);
+    }
+  }
+
+  // Debug method to check categories by store
+  async debugCategoriesByStore(storeId: string) {
+    try {
+      console.log(`Checking categories for store ${storeId}...`);
+      
+      // Check database
+      const dbCategories = await this.categoryRepository.find({
+        where: { storeId },
+        relations: ['store', 'parent'],
+      });
+      console.log(`Categories in database for store ${storeId}:`, dbCategories.length);
+      
+      if (dbCategories.length > 0) {
+        console.log('Sample database categories:', dbCategories.slice(0, 3).map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          status: cat.status,
+          storeId: cat.storeId,
+          store: cat.store?.name
+        })));
+      }
+      
+      // Check Elasticsearch
+      try {
+        const esCategories = await this.esService.search({
+          index: this.index,
+          size: 10,
+          query: {
+            term: { storeId }
+          }
+        });
+        console.log(`Categories in Elasticsearch for store ${storeId}:`, esCategories.hits.total);
+        
+        if (esCategories.hits.hits.length > 0) {
+          console.log('Sample ES categories:', esCategories.hits.hits.slice(0, 3).map((hit: any) => hit._source));
+        }
+      } catch (error) {
+        console.log('Elasticsearch query failed:', error.message);
+      }
+      
+    } catch (error) {
+      console.error('Debug categories by store error:', error);
+    }
   }
 
   @CacheEvict({

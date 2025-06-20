@@ -183,6 +183,23 @@ export class CategoriesController extends StoreCrudController<
   getProducts(@Param('id') id: string) {
     return this.service.getProducts(id);
   }
+
+  @Get('debug/index')
+  async debugIndex() {
+    return this.categorySearchService.debugIndex();
+  }
+
+  @Get('debug/reindex')
+  async debugReindex(@Param('storeId') storeId: string) {
+    await this.categorySearchService.reindexByStore(storeId);
+    return { message: 'Reindex completed' };
+  }
+
+  @Get('debug/store/:storeId')
+  async debugStoreCategories(@Param('storeId') storeId: string) {
+    await this.categorySearchService.debugCategoriesByStore(storeId);
+    return { message: 'Debug completed, check server logs' };
+  }
   
 
   // …you still can add or override any extra endpoints here.
