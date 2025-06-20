@@ -8,10 +8,47 @@ A robust NestJS-based backend for managing stores, products, and orders with adv
 - 🏪 Store management with multi-tenancy
 - 📦 Product and variant management
 - 🔍 Advanced search with Elasticsearch
+  - **Categories Search**: Full-text search with filtering and pagination
+  - **Units Search**: Complete unit management with search capabilities
+  - **Taxes Search**: Tax entity search with proper UUID handling
+  - **Providers Search**: Provider search with PostGIS location support
 - 💾 Redis caching for improved performance
 - 📊 Comprehensive metrics and monitoring
 - 🚀 Fastify for high-performance HTTP handling
 - ✨ Standardized database schema with proper case sensitivity
+
+## Search APIs
+
+The application provides comprehensive search functionality across multiple entities:
+
+### Categories Search
+- **Endpoint**: `GET /stores/{storeId}/categories/fetch`
+- **Features**: Text search, status filtering, pagination, caching
+- **Debug**: `GET /stores/{storeId}/categories/debug/index`
+
+### Units Search
+- **Endpoint**: `GET /stores/{storeId}/units/elasticsearch`
+- **Features**: Full-text search, filtering, pagination, caching
+- **Debug**: `GET /stores/{storeId}/units/debug/index`
+
+### Taxes Search
+- **Endpoint**: `GET /stores/{storeId}/variants/taxes/elasticsearch`
+- **Features**: Tax search with proper UUID handling, filtering, caching
+- **Debug**: `GET /stores/{storeId}/variants/taxes/debug/index`
+
+### Providers Search
+- **Endpoint**: `GET /stores/{storeId}/providers/elasticsearch`
+- **Features**: Provider search with PostGIS location support, filtering, caching
+- **Debug**: `GET /stores/{storeId}/providers/debug/index`
+
+All search endpoints include:
+- ✅ Full-text search with fuzzy matching
+- ✅ Advanced filtering capabilities
+- ✅ Pagination with metadata
+- ✅ Redis caching with intelligent TTL
+- ✅ Debug endpoints for troubleshooting
+- ✅ Error handling and logging
+- ✅ Store-specific data isolation
 
 ## Tech Stack
 
