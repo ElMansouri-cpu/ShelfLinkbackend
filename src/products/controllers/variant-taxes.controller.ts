@@ -10,7 +10,7 @@ import { SupabaseAuthGuard } from '../../auth/guards/supabase-auth.guard';
 import { User } from '../../auth/decorators/user.decorator';
 import { TaxSearchService } from '../services/tax-search.service';
 
-@Controller('stores/:storeId/products/taxes')
+@Controller('stores/:storeId/taxes')
 @UseGuards(SupabaseAuthGuard)
 export class VariantTaxesController extends StoreCrudController<
   Tax,
