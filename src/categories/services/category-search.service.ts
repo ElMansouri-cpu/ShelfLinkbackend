@@ -247,14 +247,14 @@ export class CategorySearchService extends BaseSearchService<Category> implement
   }
 
   protected async flattenEntity(category: Category): Promise<any> {
-    return {
+    const flattened = {
       id: category.id,
       name: category.name,
       image: category.image,
       description: category.description,
       status: category.status,
       productsCount: category.productsCount,
-      parentId: category.parentId,
+      parentId: category.parentId, // This can be null for root categories
       storeId: category.storeId,
       
       store: category.store ? {
@@ -273,6 +273,17 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     };
+
+    // Debug logging to see what's being indexed
+    console.log(`Flattening category ${category.id}:`, {
+      id: flattened.id,
+      name: flattened.name,
+      parentId: flattened.parentId,
+      hasParent: !!category.parent,
+      parentName: category.parent?.name
+    });
+
+    return flattened;
   }
 
   @Cacheable({
@@ -285,7 +296,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
   })
   async searchEntities(query: string, filters: Record<string, any> = {}) {
     try {
-      const { page = 1, limit = 50, storeId, status, q, ...cleanFilters } = filters;
+      const { page = 1, limit = 50, storeId, status, parentId, q, ...cleanFilters } = filters;
       const from = (Number(page) - 1) * Number(limit);
     
       // Build filter conditions
@@ -299,6 +310,17 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       // Add status filter if provided
       if (status) {
         mustFilters.push({ term: { status } });
+      }
+
+      // Add parentId filter if provided
+      if (parentId !== undefined && parentId !== null) {
+        if (parentId === 'null' || parentId === '') {
+          // Filter for root categories (no parent)
+          mustFilters.push({ bool: { must_not: { exists: { field: 'parentId' } } } });
+        } else {
+          // Filter for specific parent
+          mustFilters.push({ term: { parentId: Number(parentId) } });
+        }
       }
 
       // Add other filters (excluding q which is the query parameter)
@@ -466,7 +488,9 @@ export class CategorySearchService extends BaseSearchService<Category> implement
           name: cat.name,
           status: cat.status,
           storeId: cat.storeId,
-          store: cat.store?.name
+          parentId: cat.parentId,
+          store: cat.store?.name,
+          parent: cat.parent?.name
         })));
       }
       
@@ -490,6 +514,75 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       
     } catch (error) {
       console.error('Debug categories by store error:', error);
+    }
+  }
+
+  // Debug method specifically for parentId indexing
+  async debugParentIdIndexing(storeId: string) {
+    try {
+      console.log(`\n🔍 Debugging parentId indexing for store ${storeId}...`);
+      
+      // Get categories from database
+      const dbCategories = await this.categoryRepository.find({
+        where: { storeId },
+        relations: ['store', 'parent'],
+        order: { id: 'ASC' }
+      });
+      
+      console.log(`\n📊 Database categories (${dbCategories.length}):`);
+      dbCategories.forEach(cat => {
+        console.log(`  ID: ${cat.id}, Name: ${cat.name}, ParentID: ${cat.parentId}, Parent: ${cat.parent?.name || 'None'}`);
+      });
+      
+      // Get categories from Elasticsearch
+      try {
+        const esResponse = await this.esService.search({
+          index: this.index,
+          size: 100,
+          query: {
+            term: { storeId }
+          },
+          sort: [{ id: { order: 'asc' } }]
+        });
+        
+        console.log(`\n🔍 Elasticsearch categories (${esResponse.hits.total}):`);
+        esResponse.hits.hits.forEach((hit: any) => {
+          const source = hit._source;
+          console.log(`  ID: ${source.id}, Name: ${source.name}, ParentID: ${source.parentId}, Parent: ${source.parent?.name || 'None'}`);
+        });
+        
+        // Compare parentId values
+        console.log(`\n📋 ParentId comparison:`);
+        const dbParentIds = dbCategories.map(cat => ({ id: cat.id, parentId: cat.parentId }));
+        const esParentIds = esResponse.hits.hits.map((hit: any) => ({ id: hit._source.id, parentId: hit._source.parentId }));
+        
+        const mismatches: Array<{ id: number; dbParentId: number | null; esParentId: number | null }> = [];
+        dbParentIds.forEach(dbCat => {
+          const esCat = esParentIds.find(es => es.id === dbCat.id);
+          if (!esCat || esCat.parentId !== dbCat.parentId) {
+            mismatches.push({
+              id: dbCat.id,
+              dbParentId: dbCat.parentId,
+              esParentId: esCat?.parentId
+            });
+          }
+        });
+        
+        if (mismatches.length > 0) {
+          console.log(`❌ Found ${mismatches.length} parentId mismatches:`);
+          mismatches.forEach(mismatch => {
+            console.log(`  ID ${mismatch.id}: DB=${mismatch.dbParentId}, ES=${mismatch.esParentId}`);
+          });
+        } else {
+          console.log(`✅ All parentId values match between database and Elasticsearch`);
+        }
+        
+      } catch (error) {
+        console.log('Elasticsearch query failed:', error.message);
+      }
+      
+    } catch (error) {
+      console.error('Debug parentId indexing error:', error);
     }
   }
 

@@ -200,6 +200,52 @@ export class CategoriesController extends StoreCrudController<
     await this.categorySearchService.debugCategoriesByStore(storeId);
     return { message: 'Debug completed, check server logs' };
   }
+
+  @Get('debug/reindex-store/:storeId')
+  async reindexStore(@Param('storeId') storeId: string) {
+    await this.service.reindexStore(storeId);
+    return { message: `Reindexed categories for store ${storeId}` };
+  }
+
+  @Get('debug/search-index/:storeId')
+  async debugSearchIndex(@Param('storeId') storeId: string) {
+    await this.service.debugSearchIndex(storeId);
+    return { message: 'Search index debug completed, check server logs' };
+  }
+
+  @Get('debug/parentid/:storeId')
+  async debugParentId(@Param('storeId') storeId: string) {
+    await this.categorySearchService.debugParentIdIndexing(storeId);
+    return { message: 'ParentId debug completed, check server logs' };
+  }
+
+  @Get('debug/count')
+  async getCounts(@Param('storeId') storeId: string) {
+    try {
+      // Get database count using service method
+      const categories = await this.service.findByStore(storeId);
+      const dbCount = categories.length;
+      
+      // Get Elasticsearch count using search service
+      let esCount = 0;
+      try {
+        const searchResult = await this.categorySearchService.searchEntities('', { storeId, limit: 1 });
+        esCount = searchResult.pagination.total;
+      } catch (error) {
+        console.error('Failed to get ES count:', error);
+      }
+      
+      return {
+        database: dbCount,
+        elasticsearch: esCount,
+        synced: dbCount === esCount,
+        difference: dbCount - esCount
+      };
+    } catch (error) {
+      console.error('Failed to get counts:', error);
+      throw error;
+    }
+  }
   
 
   // …you still can add or override any extra endpoints here.

@@ -1,30 +1,38 @@
 # Store Management API
 
-A robust NestJS-based backend for managing stores, products, and orders with advanced search capabilities.
+A robust NestJS-based backend for managing stores, products, and orders with advanced search capabilities and comprehensive Elasticsearch integration.
 
 ## Features
 
 - 🔐 JWT Authentication with refresh tokens
 - 🏪 Store management with multi-tenancy
 - 📦 Product and variant management
-- 🔍 Advanced search with Elasticsearch
-  - **Categories Search**: Full-text search with filtering and pagination
-  - **Units Search**: Complete unit management with search capabilities
+- 🔍 **Complete Search API with Elasticsearch Integration**
+  - **Categories Search**: Full-text search with filtering, pagination, and parentId support
+  - **Brands Search**: Brand management with search and automatic reindexing
+  - **Units Search**: Complete unit management with advanced search capabilities
   - **Taxes Search**: Tax entity search with proper UUID handling
   - **Providers Search**: Provider search with PostGIS location support
-- 💾 Redis caching for improved performance
+  - **Orders Search**: Order management with complex filtering and pagination
+- 💾 **Enterprise Redis caching** for improved performance
 - 📊 Comprehensive metrics and monitoring
 - 🚀 Fastify for high-performance HTTP handling
 - ✨ Standardized database schema with proper case sensitivity
+- 🔄 **Automatic Elasticsearch indexing** for all CRUD operations
 
 ## Search APIs
 
-The application provides comprehensive search functionality across multiple entities:
+The application provides comprehensive search functionality across all entities with automatic Elasticsearch indexing:
 
 ### Categories Search
-- **Endpoint**: `GET /stores/{storeId}/categories/fetch`
-- **Features**: Text search, status filtering, pagination, caching
+- **Endpoint**: `GET /stores/{storeId}/categories/elasticsearch`
+- **Features**: Text search, status filtering, pagination, parentId filtering, caching
 - **Debug**: `GET /stores/{storeId}/categories/debug/index`
+
+### Brands Search
+- **Endpoint**: `GET /stores/{storeId}/brands/elasticsearch`
+- **Features**: Full-text search, filtering, pagination, automatic reindexing, caching
+- **Debug**: `GET /stores/{storeId}/brands/debug/index`
 
 ### Units Search
 - **Endpoint**: `GET /stores/{storeId}/units/elasticsearch`
@@ -41,21 +49,28 @@ The application provides comprehensive search functionality across multiple enti
 - **Features**: Provider search with PostGIS location support, filtering, caching
 - **Debug**: `GET /stores/{storeId}/providers/debug/index`
 
-All search endpoints include:
-- ✅ Full-text search with fuzzy matching
-- ✅ Advanced filtering capabilities
-- ✅ Pagination with metadata
-- ✅ Redis caching with intelligent TTL
-- ✅ Debug endpoints for troubleshooting
-- ✅ Error handling and logging
-- ✅ Store-specific data isolation
+### Orders Search
+- **Endpoint**: `GET /stores/{storeId}/orders/elasticsearch`
+- **Features**: Order search with complex filtering, status-based filtering, pagination, caching
+- **Debug**: `GET /stores/{storeId}/orders/debug/index`
+
+### All Search Endpoints Include:
+- ✅ **Full-text search** with fuzzy matching
+- ✅ **Advanced filtering** capabilities (status, parentId, location, custom fields)
+- ✅ **Pagination** with metadata
+- ✅ **Redis caching** with intelligent TTL
+- ✅ **Debug endpoints** for troubleshooting
+- ✅ **Error handling** and logging
+- ✅ **Store-specific data isolation**
+- ✅ **Automatic Elasticsearch indexing** on CRUD operations
+- ✅ **Manual reindexing** capabilities
 
 ## Tech Stack
 
 - **Framework**: NestJS with Fastify
 - **Database**: PostgreSQL with Supabase
-- **Search**: Elasticsearch 8.11.0
-- **Cache**: Redis 7
+- **Search**: Elasticsearch 8.11.0 with complete entity integration
+- **Cache**: Redis 7 with enterprise-grade caching
 - **Authentication**: JWT with refresh tokens
 - **API Documentation**: Swagger/OpenAPI
 - **Containerization**: Docker with multi-stage builds
@@ -67,6 +82,8 @@ All search endpoints include:
 - 📉 **70-85% Database Load Reduction** through intelligent caching
 - 🔍 **80%+ Cache Hit Rate** across all services
 - 💾 **Optimized Memory Usage** with intelligent TTL strategies
+- 🔄 **100% Elasticsearch Integration** with automatic indexing for all entities
+- 📊 **Complete Search API Coverage** across all 6 entities
 
 ## Database Schema Best Practices
 
@@ -176,6 +193,17 @@ All search endpoints include:
    npm run migration:run
    ```
 
+4. **Search Testing**
+   ```bash
+   # Test all entities indexing
+   node test-all-entities-indexing.js
+   
+   # Test specific entity search
+   node test-category-reindexing.js
+   node test-provider-search.js
+   node test-parentid-indexing.js
+   ```
+
 ## Docker Development Tools
 
 The development environment includes additional tools for easier development:
@@ -193,11 +221,32 @@ The application is optimized for performance with:
 
 - Fastify as the HTTP server (2-3x faster than Express)
 - Redis caching for frequently accessed data (80%+ hit rate)
-- Elasticsearch for fast search operations
+- Elasticsearch for fast search operations with complete entity integration
 - Resource limits and health checks for all services
 - Optimized Docker configurations
 - Intelligent cache invalidation patterns
 - Enhanced search functionality with fuzzy matching
+- Automatic Elasticsearch indexing for all CRUD operations
+
+## Search Integration Features
+
+### Automatic Indexing
+- All CRUD operations automatically trigger Elasticsearch updates
+- Proper field type mapping for different data types
+- UUID string handling for tax entities
+- PostGIS location field support for providers
+- ParentId filtering for hierarchical categories
+
+### Manual Reindexing
+- Debug endpoints for manual reindexing and troubleshooting
+- Comprehensive test scripts for all entities
+- Indexing verification and performance monitoring
+
+### Advanced Search Capabilities
+- Full-text search with fuzzy matching across all entities
+- Advanced filtering (status, parentId, location, custom fields)
+- Store-specific data isolation
+- Comprehensive error handling and logging
 
 ## Contributing
 

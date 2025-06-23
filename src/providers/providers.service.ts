@@ -5,12 +5,14 @@ import { Provider } from './entities/provider.entity';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { QueryDto } from 'src/common/dto/query.dto';
+import { ProviderSearchService } from './services/provider-search.service';
 
 @Injectable()
 export class ProvidersService {
   constructor(
     @InjectRepository(Provider)
     private providersRepository: Repository<Provider>,
+    private readonly providerSearchService: ProviderSearchService,
   ) {}
 
   async create(createProviderDto: CreateProviderDto, userId: string): Promise<Provider> {
@@ -21,7 +23,19 @@ export class ProvidersService {
       location,
       userId,
     });
-    return this.providersRepository.save(provider);
+    
+    const savedProvider = await this.providersRepository.save(provider);
+    
+    // Index the new provider in Elasticsearch
+    try {
+      await this.providerSearchService.indexEntity(savedProvider);
+      console.log(`Indexed new provider ${savedProvider.id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to index new provider ${savedProvider.id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return savedProvider;
   }
 
   async findAll(storeId: string, userId: string): Promise<Provider[]> {
@@ -57,11 +71,45 @@ export class ProvidersService {
       { id, storeId, userId },
       updateData,
     );
-    return this.findOne(id, storeId, userId);
+    
+    const updatedProvider = await this.findOne(id, storeId, userId);
+    
+    // Re-index the updated provider in Elasticsearch
+    try {
+      await this.providerSearchService.indexEntity(updatedProvider);
+      console.log(`Re-indexed updated provider ${id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to re-index updated provider ${id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return updatedProvider;
   }
 
   async remove(id: number, storeId: string, userId: string): Promise<void> {
     await this.providersRepository.delete({ id, storeId, userId });
+    
+    // Remove the provider from Elasticsearch index
+    try {
+      await this.providerSearchService.removeEntity(id);
+      console.log(`Removed provider ${id} from Elasticsearch index`);
+    } catch (error) {
+      console.error(`Failed to remove provider ${id} from Elasticsearch:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+  }
+
+  /**
+   * Manually trigger reindexing for a specific store
+   */
+  async reindexStore(storeId: string): Promise<void> {
+    try {
+      await this.providerSearchService.reindexByStore(storeId);
+      console.log(`Successfully reindexed providers for store ${storeId}`);
+    } catch (error) {
+      console.error(`Failed to reindex providers for store ${storeId}:`, error);
+      throw error;
+    }
   }
 
   async textSearchProviders(storeId: string, search: string, userId: string): Promise<Provider[]> {
