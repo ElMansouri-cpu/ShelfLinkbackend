@@ -8,6 +8,7 @@ import { OrdersGateway } from '../orders.gateway';
 import { OrderItem } from '../entities/order-item.entity';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Cacheable, CacheEvict, CachePatterns } from '../../cache/decorators';
+import { OrderSearchService } from './order-search.service';
 
 @Injectable()
 export class OrdersService extends StoreCrudService<Order> {
@@ -21,12 +22,13 @@ export class OrdersService extends StoreCrudService<Order> {
     private itemRepo: Repository<OrderItem>,
     protected readonly storesService: StoresService,
     private readonly ordersGateway: OrdersGateway,
+    private readonly orderSearchService: OrderSearchService,
   ) {
     super(repo, storesService);
   }
 
   /**
-   * Create order with cache invalidation
+   * Create order with cache invalidation and Elasticsearch indexing
    * Invalidates store and user order caches when new order is created
    */
   @CacheEvict({
@@ -36,11 +38,21 @@ export class OrdersService extends StoreCrudService<Order> {
   async create(data: Partial<Order>): Promise<Order> {
     const order = await super.create(data);
     this.ordersGateway.emitOrderStatus(order.id, 'pending');
+    
+    // Index the new order in Elasticsearch
+    try {
+      await this.orderSearchService.indexEntity(order);
+      console.log(`Indexed new order ${order.id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to index new order ${order.id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
     return order;
   }
 
   /**
-   * Create complete order with cache invalidation
+   * Create complete order with cache invalidation and Elasticsearch indexing
    */
   @CacheEvict({
     patternGenerator: (createOrderDto) => `store:${createOrderDto.storeId}:orders*`,
@@ -59,7 +71,18 @@ export class OrdersService extends StoreCrudService<Order> {
       await this.itemRepo.save(orderItems);
     }
     
-    return this.repo.findOneOrFail({ where: { id: order.id }, relations: ['items','items.variant','store'] });
+    const completeOrder = await this.repo.findOneOrFail({ where: { id: order.id }, relations: ['items','items.variant','store'] });
+    
+    // Index the new order in Elasticsearch
+    try {
+      await this.orderSearchService.indexEntity(completeOrder);
+      console.log(`Indexed new complete order ${completeOrder.id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to index new complete order ${completeOrder.id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return completeOrder;
   }
 
   /**
@@ -120,7 +143,7 @@ export class OrdersService extends StoreCrudService<Order> {
   }
 
   /**
-   * Update order status with cache invalidation
+   * Update order status with cache invalidation and Elasticsearch indexing
    */
   @CacheEvict({
     patternGenerator: (id) => `order:${id}*`,
@@ -130,11 +153,22 @@ export class OrdersService extends StoreCrudService<Order> {
     const order = await this.repo.findOneOrFail({ where: { id } });
     order.status = status;
     this.ordersGateway.emitOrderStatus(id, status);
-    return this.repo.save(order);
+    const updatedOrder = await this.repo.save(order);
+    
+    // Re-index the updated order in Elasticsearch
+    try {
+      await this.orderSearchService.indexEntity(updatedOrder);
+      console.log(`Re-indexed updated order ${id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to re-index updated order ${id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return updatedOrder;
   }
 
   /**
-   * Archive order with cache invalidation
+   * Archive order with cache invalidation and Elasticsearch indexing
    */
   @CacheEvict({
     patternGenerator: (id) => `order:${id}*`,
@@ -143,7 +177,18 @@ export class OrdersService extends StoreCrudService<Order> {
   async archiveOrder(id: string): Promise<Order> {
     const order = await this.repo.findOneOrFail({ where: { id } });
     order.isActive = false;
-    return this.repo.save(order);
+    const archivedOrder = await this.repo.save(order);
+    
+    // Re-index the archived order in Elasticsearch
+    try {
+      await this.orderSearchService.indexEntity(archivedOrder);
+      console.log(`Re-indexed archived order ${id} in Elasticsearch`);
+    } catch (error) {
+      console.error(`Failed to re-index archived order ${id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return archivedOrder;
   }
 
   /**
@@ -262,5 +307,34 @@ export class OrdersService extends StoreCrudService<Order> {
       .andWhere('order.createdAt <= :endDate', { endDate })
       .orderBy('order.createdAt', 'DESC')
       .getMany();
+  }
+
+  /**
+   * Override remove with Elasticsearch indexing
+   */
+  async remove(id: string | number): Promise<void> {
+    await super.remove(id);
+    
+    // Remove the order from Elasticsearch index
+    try {
+      await this.orderSearchService.removeEntity(id);
+      console.log(`Removed order ${id} from Elasticsearch index`);
+    } catch (error) {
+      console.error(`Failed to remove order ${id} from Elasticsearch:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+  }
+
+  /**
+   * Manually trigger reindexing for a specific store
+   */
+  async reindexStore(storeId: string): Promise<void> {
+    try {
+      await this.orderSearchService.reindexByStore(storeId);
+      console.log(`Successfully reindexed orders for store ${storeId}`);
+    } catch (error) {
+      console.error(`Failed to reindex orders for store ${storeId}:`, error);
+      throw error;
+    }
   }
 } 

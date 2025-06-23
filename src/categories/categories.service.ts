@@ -5,6 +5,7 @@ import { Category } from './entities/category.entity';
 import { Repository } from 'typeorm';
 import { StoresService } from '../stores/stores.service';
 import { Cacheable, CacheEvict, CachePatterns } from '../cache/decorators';
+import { CategorySearchService } from './services/category-search.service';
 
 @Injectable()
 export class CategoriesService extends StoreCrudService<Category> {
@@ -14,40 +15,88 @@ export class CategoriesService extends StoreCrudService<Category> {
   constructor(
     @InjectRepository(Category) repo: Repository<Category>,
     storesService: StoresService,
+    private readonly categorySearchService: CategorySearchService,
   ) {
     super(repo, storesService);
   }
 
   /**
-   * Override create with cache invalidation
+   * Override create with cache invalidation and Elasticsearch indexing
    * Invalidates store category caches when new category is created
    */
   @CacheEvict({
     patternGenerator: (data) => `store:${data.storeId}:categories*`,
   })
   async create(data: Partial<Category>): Promise<Category> {
-    return super.create(data);
+    const category = await super.create(data);
+    
+    // Index the new category in Elasticsearch
+    try {
+      // Load relations needed for indexing
+      const categoryWithRelations = await this.repo.findOne({
+        where: { id: category.id },
+        relations: ['store', 'parent'],
+      });
+      
+      if (categoryWithRelations) {
+        await this.categorySearchService.indexEntity(categoryWithRelations);
+        console.log(`Indexed new category ${category.id} in Elasticsearch`);
+      }
+    } catch (error) {
+      console.error(`Failed to index new category ${category.id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return category;
   }
 
   /**
-   * Override update with cache invalidation
+   * Override update with cache invalidation and Elasticsearch indexing
    * Invalidates specific category and store category caches
    */
   @CacheEvict({
     patternGenerator: (id, data) => `category:${id}*`,
   })
   async update(id: string | number, data: Partial<Category>): Promise<Category> {
-    return super.update(id, data);
+    const category = await super.update(id, data);
+    
+    // Re-index the updated category in Elasticsearch
+    try {
+      // Load relations needed for indexing
+      const categoryWithRelations = await this.repo.findOne({
+        where: { id: category.id },
+        relations: ['store', 'parent'],
+      });
+      
+      if (categoryWithRelations) {
+        await this.categorySearchService.indexEntity(categoryWithRelations);
+        console.log(`Re-indexed updated category ${id} in Elasticsearch`);
+      }
+    } catch (error) {
+      console.error(`Failed to re-index updated category ${id}:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
+    
+    return category;
   }
 
   /**
-   * Override remove with cache invalidation
+   * Override remove with cache invalidation and Elasticsearch indexing
    */
   @CacheEvict({
     patternGenerator: (id) => `category:${id}*`,
   })
   async remove(id: string | number): Promise<void> {
-    return super.remove(id);
+    await super.remove(id);
+    
+    // Remove the category from Elasticsearch index
+    try {
+      await this.categorySearchService.removeEntity(id);
+      console.log(`Removed category ${id} from Elasticsearch index`);
+    } catch (error) {
+      console.error(`Failed to remove category ${id} from Elasticsearch:`, error);
+      // Don't throw error to prevent transaction rollback
+    }
   }
 
   /**
@@ -295,5 +344,31 @@ export class CategoriesService extends StoreCrudService<Category> {
       .andWhere('category.productsCount > 0')
       .orderBy('category.productsCount', 'DESC')
       .getMany();
+  }
+
+  /**
+   * Manually trigger reindexing for a specific store
+   * Useful for debugging or after bulk operations
+   */
+  async reindexStore(storeId: string): Promise<void> {
+    try {
+      await this.categorySearchService.reindexByStore(storeId);
+      console.log(`Successfully reindexed categories for store ${storeId}`);
+    } catch (error) {
+      console.error(`Failed to reindex categories for store ${storeId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug Elasticsearch index for a specific store
+   */
+  async debugSearchIndex(storeId: string): Promise<void> {
+    try {
+      await this.categorySearchService.debugCategoriesByStore(storeId);
+    } catch (error) {
+      console.error(`Failed to debug search index for store ${storeId}:`, error);
+      throw error;
+    }
   }
 }
