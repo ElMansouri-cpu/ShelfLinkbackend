@@ -16,6 +16,9 @@ class LocationDto {
 }
 
 export class UpdateStoreDto {
+  @IsOptional()
+  id?: any;
+
   @IsString()
   @IsOptional()
   name?: string;
@@ -45,7 +48,21 @@ export class UpdateStoreDto {
   @IsOptional()
   isPrimary?: boolean;
 
+  @IsNumber()
+  @IsOptional()
+  productsCount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  ordersCount?: number;
+
+  @IsOptional()
+  lastActive?: Date;
+
   @IsEnum(['active', 'maintenance'])
   @IsOptional()
   status?: 'active' | 'maintenance';
+
+  @IsOptional()
+  userId?: string;
 } 

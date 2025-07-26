@@ -4,6 +4,8 @@ import {
   ArgumentsHost,
   HttpStatus,
   Logger,
+  HttpException,
+  BadRequestException,
 } from '@nestjs/common';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ErrorResponse } from './http-exception.filter';
@@ -17,19 +19,42 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const reply = ctx.getResponse<FastifyReply>();
     const request = ctx.getRequest<FastifyRequest>();
 
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = 'Internal server error';
+    let error = 'UnhandledException';
+
+    // Handle HTTP exceptions properly
+    if (exception instanceof HttpException) {
+      statusCode = exception.getStatus();
+      const response = exception.getResponse();
+      
+      if (typeof response === 'string') {
+        message = response;
+      } else if (typeof response === 'object' && response !== null) {
+        message = (response as any).message || exception.message;
+        error = (response as any).error || exception.constructor.name;
+      } else {
+        message = exception.message;
+        error = exception.constructor.name;
+      }
+    } else if (exception instanceof Error) {
+      message = exception.message;
+      error = exception.constructor.name;
+    }
+
     const errorResponse: ErrorResponse = {
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      statusCode,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: 'Internal server error',
-      error: 'UnhandledException',
+      message,
+      error,
       requestId: this.generateRequestId(),
     };
 
     // Log error details
     this.logger.error(
-      `Unhandled Exception: ${HttpStatus.INTERNAL_SERVER_ERROR}`,
+      `Unhandled Exception: ${statusCode}`,
       {
         requestId: errorResponse.requestId,
         path: request.url,
@@ -41,7 +66,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       },
     );
 
-    reply.status(HttpStatus.INTERNAL_SERVER_ERROR).send(errorResponse);
+    reply.status(statusCode).send(errorResponse);
   }
 
   private generateRequestId(): string {

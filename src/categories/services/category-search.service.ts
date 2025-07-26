@@ -8,7 +8,7 @@ import { CacheEvict, Cacheable } from '../../cache/decorators';
 
 @Injectable()
 export class CategorySearchService extends BaseSearchService<Category> implements OnModuleInit {
-  protected readonly index = 'categories';
+  protected readonly indexName = 'categories';
   protected readonly searchFields = [
     'name',
     'description',
@@ -20,7 +20,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
   ) {
-    super(esService);
+    super();
   }
 
   async onModuleInit() {
@@ -36,15 +36,15 @@ export class CategorySearchService extends BaseSearchService<Category> implement
     }
   }
 
-  protected async createIndexIfNotExists() {
+  public async createIndexIfNotExists() {
     try {
       const indexExists = await this.esService.indices.exists({
-        index: this.index
+        index: this.indexName
       });
 
       if (!indexExists) {
         await this.esService.indices.create({
-          index: this.index,
+          index: this.indexName,
           body: {
             settings: {
               analysis: {
@@ -103,14 +103,22 @@ export class CategorySearchService extends BaseSearchService<Category> implement
                     }
                   }
                 },
-                status: {
-                  type: 'keyword'
-                },
-                productsCount: {
-                  type: 'integer'
-                },
                 parentId: {
                   type: 'long'
+                },
+                level: {
+                  type: 'integer'
+                },
+                path: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
                 },
                 storeId: {
                   type: 'keyword'
@@ -123,40 +131,12 @@ export class CategorySearchService extends BaseSearchService<Category> implement
                     name: {
                       type: 'text',
                       analyzer: 'autocomplete',
-                      search_analyzer: 'standard',
-                      fields: {
-                        keyword: {
-                          type: 'keyword',
-                          ignore_above: 256
-                        }
-                      }
-                    },
-                    logo: {
-                      type: 'text'
-                    },
-                    url: {
-                      type: 'text'
-                    },
-                    status: {
-                      type: 'keyword'
+                      search_analyzer: 'standard'
                     }
                   }
                 },
-                parent: {
-                  properties: {
-                    id: {
-                      type: 'long'
-                    },
-                    name: {
-                      type: 'text',
-                      fields: {
-                        keyword: {
-                          type: 'keyword',
-                          ignore_above: 256
-                        }
-                      }
-                    }
-                  }
+                productsCount: {
+                  type: 'integer'
                 },
                 createdAt: {
                   type: 'date'
@@ -168,10 +148,10 @@ export class CategorySearchService extends BaseSearchService<Category> implement
             }
           }
         });
-        console.log(`Created index ${this.index} with proper mapping`);
+        console.log(`Created index ${this.indexName} with proper mapping`);
       }
     } catch (error) {
-      console.error(`Failed to create index ${this.index}:`, error);
+      console.error(`Failed to create index ${this.indexName}:`, error);
       throw error;
     }
   }
@@ -208,21 +188,21 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       
       // Delete existing index if it exists
       try {
-        await this.esService.indices.delete({ index: this.index });
-        console.log(`Deleted existing index ${this.index}`);
+        await this.esService.indices.delete({ index: this.indexName });
+        console.log(`Deleted existing index ${this.indexName}`);
       } catch (error) {
         // Ignore error if index doesn't exist
       }
 
       // Create fresh index
       await this.createIndexIfNotExists();
-      console.log(`Created fresh index ${this.index}`);
+      console.log(`Created fresh index ${this.indexName}`);
 
       // Index all categories
       const operations: any[] = [];
       for (const category of categories) {
         const flattenedEntity = await this.flattenEntity(category);
-        operations.push({ index: { _index: this.index, _id: category.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: category.id.toString() } });
         operations.push(flattenedEntity);
       }
 
@@ -247,14 +227,14 @@ export class CategorySearchService extends BaseSearchService<Category> implement
   }
 
   protected async flattenEntity(category: Category): Promise<any> {
-    const flattened = {
+    return {
       id: category.id,
       name: category.name,
       image: category.image,
       description: category.description,
       status: category.status,
       productsCount: category.productsCount,
-      parentId: category.parentId, // This can be null for root categories
+      parentId: category.parentId,
       storeId: category.storeId,
       
       store: category.store ? {
@@ -273,17 +253,52 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     };
+  }
 
-    // Debug logging to see what's being indexed
-    console.log(`Flattening category ${category.id}:`, {
-      id: flattened.id,
-      name: flattened.name,
-      parentId: flattened.parentId,
-      hasParent: !!category.parent,
-      parentName: category.parent?.name
-    });
+  async indexEntity(entity: Category): Promise<void> {
+    try {
+      // Load relations if not already loaded
+      let categoryWithRelations = entity;
+      if (!entity.store || !entity.parent) {
+        const foundCategory = await this.categoryRepository.findOne({
+          where: { id: entity.id },
+          relations: ['store', 'parent'],
+        });
+        if (!foundCategory) {
+          console.warn(`Category ${entity.id} not found for indexing`);
+          return;
+        }
+        categoryWithRelations = foundCategory;
+      }
 
-    return flattened;
+      const flattenedEntity = await this.flattenEntity(categoryWithRelations);
+      
+      await this.esService.index({
+        index: this.indexName,
+        id: entity.id.toString(),
+        body: flattenedEntity,
+        refresh: true,
+      });
+      
+      console.log(`Successfully indexed category ${entity.id}`);
+    } catch (error) {
+      console.error(`Failed to index category ${entity.id}:`, error);
+      throw error;
+    }
+  }
+
+  async removeEntity(id: string | number): Promise<void> {
+    try {
+      await this.esService.delete({
+        index: this.indexName,
+        id: id.toString(),
+        refresh: true,
+      });
+      console.log(`Successfully removed category ${id} from index`);
+    } catch (error) {
+      console.error(`Failed to remove category ${id} from index:`, error);
+      throw error;
+    }
   }
 
   @Cacheable({
@@ -402,7 +417,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       console.log('Search filters:', JSON.stringify(filters, null, 2));
     
       const response = await this.esService.search({
-        index: this.index,
+        index: this.indexName,
         from,
         size: Number(limit),
         query: queryBody,
@@ -441,25 +456,25 @@ export class CategorySearchService extends BaseSearchService<Category> implement
   async debugIndex() {
     try {
       // Check if index exists
-      const indexExists = await this.esService.indices.exists({ index: this.index });
-      console.log(`Index ${this.index} exists:`, indexExists);
+      const indexExists = await this.esService.indices.exists({ index: this.indexName });
+      console.log(`Index ${this.indexName} exists:`, indexExists);
 
       if (indexExists) {
         // Get index stats
-        const stats = await this.esService.indices.stats({ index: this.index });
+        const stats = await this.esService.indices.stats({ index: this.indexName });
         console.log(`Index stats:`, stats);
 
         // Get mapping
-        const mapping = await this.esService.indices.getMapping({ index: this.index });
+        const mapping = await this.esService.indices.getMapping({ index: this.indexName });
         console.log(`Index mapping:`, mapping);
 
         // Count documents
-        const count = await this.esService.count({ index: this.index });
+        const count = await this.esService.count({ index: this.indexName });
         console.log(`Document count:`, count);
 
         // Get a few sample documents
         const sample = await this.esService.search({
-          index: this.index,
+          index: this.indexName,
           size: 5,
           query: { match_all: {} }
         });
@@ -497,7 +512,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       // Check Elasticsearch
       try {
         const esCategories = await this.esService.search({
-          index: this.index,
+          index: this.indexName,
           size: 10,
           query: {
             term: { storeId }
@@ -537,7 +552,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       // Get categories from Elasticsearch
       try {
         const esResponse = await this.esService.search({
-          index: this.index,
+          index: this.indexName,
           size: 100,
           query: {
             term: { storeId }
@@ -606,7 +621,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
 
       // Delete existing documents for this store
       await this.esService.deleteByQuery({
-        index: this.index,
+        index: this.indexName,
         body: {
           query: {
             term: { storeId }
@@ -618,7 +633,7 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       const operations: any[] = [];
       for (const category of categories) {
         const flattenedEntity = await this.flattenEntity(category);
-        operations.push({ index: { _index: this.index, _id: category.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: category.id.toString() } });
         operations.push(flattenedEntity);
       }
 
@@ -641,4 +656,4 @@ export class CategorySearchService extends BaseSearchService<Category> implement
       throw error;
     }
   }
-} 
+}

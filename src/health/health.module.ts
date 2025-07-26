@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
-import { SearchModule } from '../elasticsearch/elasticsearch.module';
 
 @Module({
-  imports: [SearchModule],
+  imports: [],
   controllers: [HealthController],
   providers: [HealthService],
   exports: [HealthService],

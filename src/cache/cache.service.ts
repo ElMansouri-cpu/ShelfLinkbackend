@@ -186,19 +186,23 @@ export class CacheService {
       
       if (!redisClient) {
         this.logger.warn(`Redis client not available for pattern invalidation: ${pattern}`);
-        return 0;
+        this.logger.debug('Attempting fallback cache invalidation...');
+        return await this.fallbackPatternInvalidation(pattern);
       }
 
       let deletedCount = 0;
       let cursor = '0';
+      let totalScanned = 0;
       
       do {
         // Use SCAN to find matching keys
         const result = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
         cursor = result[0];
         const keys = result[1];
+        totalScanned += keys.length;
         
         if (keys.length > 0) {
+          this.logger.debug(`Found ${keys.length} keys matching pattern "${pattern}":`, keys);
           // Delete found keys
           await redisClient.del(...keys);
           deletedCount += keys.length;
@@ -206,7 +210,7 @@ export class CacheService {
         }
       } while (cursor !== '0');
       
-      this.logger.log(`Cache invalidation completed for pattern: ${pattern}, deleted ${deletedCount} keys`);
+      this.logger.log(`Cache invalidation completed for pattern: ${pattern}, scanned ${totalScanned} keys, deleted ${deletedCount} keys`);
       this.metrics.deletes += deletedCount;
       
       return deletedCount;
@@ -218,13 +222,177 @@ export class CacheService {
   }
 
   /**
+   * Fallback pattern invalidation when Redis client is not available
+   * This method tries to invalidate common cache patterns manually
+   */
+  private async fallbackPatternInvalidation(pattern: string): Promise<number> {
+    try {
+      this.logger.debug(`Using fallback pattern invalidation for: ${pattern}`);
+      
+      let deletedCount = 0;
+      
+      // Extract entity type from pattern
+      const entityMatch = pattern.match(/search:(\w+):/);
+      const entityType = entityMatch ? entityMatch[1] : null;
+      
+      // Extract store ID from pattern if present
+      const storeMatch = pattern.match(/store=([^:]+)/);
+      const storeId = storeMatch ? storeMatch[1] : null;
+      
+      // Common cache key patterns to try based on entity type
+      const commonPatterns = [
+        // Brand search patterns
+        `search:brands:store=*:*`,
+        `search:brands:*`,
+        // Category search patterns
+        `search:categories:store=*:*`,
+        `search:categories:*`,
+        // Provider search patterns
+        `search:providers:store=*:*`,
+        `search:providers:*`,
+        // Unit search patterns
+        `search:units:store=*:*`,
+        `search:units:*`,
+        // Store-specific patterns
+        `store:*:brands*`,
+        `store:*:categories*`,
+        `store:*:providers*`,
+        `store:*:units*`,
+        // General patterns
+        `*:brands:*`,
+        `*:categories:*`,
+        `*:providers:*`,
+        `*:units:*`,
+      ];
+      
+      // Check if our pattern matches any common patterns
+      for (const commonPattern of commonPatterns) {
+        if (this.patternMatches(pattern, commonPattern)) {
+          this.logger.debug(`Pattern ${pattern} matches common pattern ${commonPattern}, attempting manual invalidation`);
+          
+          // Try to delete some common cache keys manually
+          const keysToTry = this.generateCommonKeys(pattern, entityType, storeId);
+          
+          for (const key of keysToTry) {
+            try {
+              await this.del(key);
+              deletedCount++;
+              this.logger.debug(`Fallback deleted key: ${key}`);
+            } catch (error) {
+              // Key might not exist, that's okay
+              this.logger.debug(`Fallback key not found: ${key}`);
+            }
+          }
+        }
+      }
+      
+      this.logger.debug(`Fallback pattern invalidation completed, deleted ${deletedCount} keys`);
+      return deletedCount;
+    } catch (error) {
+      this.logger.error('Fallback pattern invalidation failed:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Check if a pattern matches another pattern
+   */
+  private patternMatches(pattern: string, commonPattern: string): boolean {
+    // Simple pattern matching - convert wildcards to regex
+    const regexPattern = commonPattern.replace(/\*/g, '.*');
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(pattern);
+  }
+
+  /**
+   * Generate common cache keys based on a pattern
+   */
+  private generateCommonKeys(pattern: string, entityType: string | null, storeId: string | null): string[] {
+    const keys: string[] = [];
+    
+    if (storeId) {
+      // Generate store-specific keys
+      keys.push(`store:${storeId}:brands`);
+      keys.push(`store:${storeId}:categories`);
+      keys.push(`store:${storeId}:providers`);
+      keys.push(`store:${storeId}:units`);
+      
+      // Generate search cache keys for all entity types
+      const entityTypes = ['brands', 'categories', 'providers', 'units'];
+      const commonQueries = ['', 'test', 'search', 'query'];
+      const commonPages = [1, 2];
+      const commonLimits = [10, 20, 50, 100];
+      
+      for (const entity of entityTypes) {
+        for (const query of commonQueries) {
+          for (const page of commonPages) {
+            for (const limit of commonLimits) {
+              const filtersKey = 'no-filters';
+              keys.push(`search:${entity}:store=${storeId}:q=${query}:page=${page}:limit=${limit}:filters:${filtersKey}`);
+            }
+          }
+        }
+      }
+    }
+    
+    // Add general entity keys
+    const entityTypes = ['brands', 'categories', 'providers', 'units'];
+    for (const entity of entityTypes) {
+      keys.push(`search:${entity}:*`);
+      keys.push(`${entity}:*`);
+    }
+    
+    return keys;
+  }
+
+  /**
    * Get Redis client for advanced operations
    */
   private getRedisClient(): any {
     try {
-      // Access the underlying Redis client
+      this.logger.debug('Attempting to get Redis client...');
+      
+      // Access the underlying Redis client from the cache manager
       const store = (this.cacheManager as any).store;
-      return store?.getClient?.() || store?.client;
+      this.logger.debug('Cache store:', store ? 'Found' : 'Not found');
+      
+      if (!store) {
+        this.logger.warn('Cache store not found');
+        return null;
+      }
+      
+      // Try different ways to access the Redis client
+      let client = null;
+      
+      // Method 1: Direct client property
+      if (store.client) {
+        client = store.client;
+        this.logger.debug('Found Redis client via store.client');
+      }
+      // Method 2: getClient method
+      else if (store.getClient && typeof store.getClient === 'function') {
+        client = store.getClient();
+        this.logger.debug('Found Redis client via store.getClient()');
+      }
+      // Method 3: Redis store specific
+      else if (store._redis) {
+        client = store._redis;
+        this.logger.debug('Found Redis client via store._redis');
+      }
+      // Method 4: Check if store itself is the client
+      else if (store.scan && typeof store.scan === 'function') {
+        client = store;
+        this.logger.debug('Found Redis client via store.scan method');
+      }
+      
+      this.logger.debug('Redis client:', client ? 'Found' : 'Not found');
+      
+      if (!client) {
+        this.logger.warn('Redis client not available - pattern invalidation will not work');
+        this.logger.debug('Available store properties:', Object.keys(store));
+      }
+      
+      return client;
     } catch (error) {
       this.logger.error('Failed to get Redis client:', error);
       return null;

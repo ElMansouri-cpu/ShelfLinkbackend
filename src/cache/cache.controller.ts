@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Delete, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Param, Query, UseGuards, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { CacheService } from './cache.service';
 import { CacheMonitorService } from './monitoring/cache-monitor.service';
 
@@ -204,5 +204,75 @@ export class CacheController {
       message: 'All cache entries cleared',
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post('cleanup-orphaned-brand')
+  @ApiOperation({ summary: 'Clean up orphaned brand document from Elasticsearch' })
+  @ApiResponse({ status: 200, description: 'Orphaned brand cleaned up successfully' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        brandId: { type: 'number', description: 'Brand ID to clean up' },
+        storeId: { type: 'string', description: 'Store ID for the brand' }
+      },
+      required: ['brandId', 'storeId']
+    }
+  })
+  async cleanupOrphanedBrand(@Body() body: { brandId: number; storeId: string }) {
+    try {
+      // Import the brand search service dynamically to avoid circular dependencies
+      const { BrandSearchService } = await import('../brands/services/brand-search.service');
+      const { ElasticsearchService } = await import('@nestjs/elasticsearch');
+      
+      // Create a temporary instance to clean up the orphaned document
+      const esService = new ElasticsearchService({
+        node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9200'
+      });
+      
+      const brandSearchService = new BrandSearchService(esService, null as any);
+      
+      console.log(`🧹 Cleaning up orphaned brand ${body.brandId} from Elasticsearch...`);
+      
+      // Remove the orphaned document from Elasticsearch
+      await brandSearchService.removeEntity(body.brandId);
+      
+      // Also clear any related cache entries
+      const cachePatterns = [
+        `search:brands:store=${body.storeId}:*`,
+        `search:brands:store=${body.storeId}*`,
+        `store:${body.storeId}:brands*`,
+        `brand:${body.brandId}*`
+      ];
+      
+      let totalCleared = 0;
+      for (const pattern of cachePatterns) {
+        const cleared = await this.cacheService.invalidatePattern(pattern);
+        totalCleared += cleared;
+      }
+      
+      console.log(`✅ Successfully cleaned up orphaned brand ${body.brandId} and cleared ${totalCleared} cache entries`);
+      
+      return {
+        success: true,
+        message: `Orphaned brand ${body.brandId} cleaned up successfully`,
+        data: {
+          brandId: body.brandId,
+          storeId: body.storeId,
+          cacheEntriesCleared: totalCleared
+        },
+        timestamp: new Date().toISOString(),
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to clean up orphaned brand ${body.brandId}:`, error);
+      
+      return {
+        success: false,
+        message: `Failed to clean up orphaned brand ${body.brandId}`,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
 } 

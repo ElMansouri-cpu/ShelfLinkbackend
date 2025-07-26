@@ -8,6 +8,8 @@ export interface CacheEvictOptions {
   condition?: (...args: any[]) => boolean; // Conditional eviction
   allEntries?: boolean; // Clear all cache entries
   beforeInvocation?: boolean; // Evict before method execution (default: after)
+  cascade?: boolean; // Cascade eviction to related entities
+  cascadePatterns?: string[]; // Additional patterns to evict when cascading
 }
 
 export const CACHE_EVICT_METADATA = 'cache-evict:metadata';
@@ -45,6 +47,8 @@ export function CacheEvict(options: CacheEvictOptions = {}): MethodDecorator {
       condition: options.condition,
       allEntries: options.allEntries || false,
       beforeInvocation: options.beforeInvocation || false,
+      cascade: options.cascade || false,
+      cascadePatterns: options.cascadePatterns || [],
       methodName: propertyKey,
       className: target.constructor.name,
     })(target, propertyKey, descriptor);
@@ -102,4 +106,140 @@ export const EvictionPatterns = {
     condition,
     keyGenerator,
   }),
+
+  /**
+   * CRUD operation eviction patterns
+   */
+  CRUD: {
+    /**
+     * Create operation - evict list caches and search caches
+     */
+    Create: (storeIdGenerator: (...args: any[]) => string, entityType: string): CacheEvictOptions => ({
+      patternGenerator: (storeId: string) => [
+        `store:${storeId}:${entityType}*`,
+        `search:${entityType}:*`,
+        `store:${storeId}:${entityType}:list*`,
+        `store:${storeId}:${entityType}:query*`,
+      ].join('|'),
+      cascade: true,
+      cascadePatterns: [
+        `store:${storeIdGenerator()}:stats*`,
+        `store:${storeIdGenerator()}:counts*`,
+      ],
+    }),
+
+    /**
+     * Update operation - evict specific entity and related caches
+     */
+    Update: (
+      idGenerator: (...args: any[]) => string | number,
+      storeIdGenerator: (...args: any[]) => string,
+      entityType: string
+    ): CacheEvictOptions => ({
+      keyGenerator: (id: string | number, storeId: string) => `${entityType}:${id}:store:${storeId}`,
+      patternGenerator: (id: string | number, storeId: string) => [
+        `${entityType}:${id}*`,
+        `store:${storeId}:${entityType}*`,
+        `search:${entityType}:*`,
+      ].join('|'),
+      cascade: true,
+      cascadePatterns: [
+        `store:${storeIdGenerator()}:stats*`,
+        `store:${storeIdGenerator()}:counts*`,
+      ],
+    }),
+
+    /**
+     * Delete operation - evict specific entity and related caches
+     */
+    Delete: (
+      idGenerator: (...args: any[]) => string | number,
+      storeIdGenerator: (...args: any[]) => string,
+      entityType: string
+    ): CacheEvictOptions => ({
+      keyGenerator: (id: string | number, storeId: string) => `${entityType}:${id}:store:${storeId}`,
+      patternGenerator: (id: string | number, storeId: string) => [
+        `${entityType}:${id}*`,
+        `store:${storeId}:${entityType}*`,
+        `search:${entityType}:*`,
+      ].join('|'),
+      cascade: true,
+      cascadePatterns: [
+        `store:${storeIdGenerator()}:stats*`,
+        `store:${storeIdGenerator()}:counts*`,
+      ],
+    }),
+
+    /**
+     * Bulk operation - evict all related caches
+     */
+    Bulk: (storeIdGenerator: (...args: any[]) => string, entityType: string): CacheEvictOptions => ({
+      patternGenerator: (storeId: string) => [
+        `store:${storeId}:${entityType}*`,
+        `search:${entityType}:*`,
+        `${entityType}:*`,
+      ].join('|'),
+      cascade: true,
+      cascadePatterns: [
+        `store:${storeIdGenerator()}:stats*`,
+        `store:${storeIdGenerator()}:counts*`,
+      ],
+    }),
+  },
+
+  /**
+   * Entity-specific eviction patterns
+   */
+  Entity: {
+    /**
+     * Brand-specific eviction patterns
+     */
+    Brand: {
+      Create: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Create(storeIdGenerator, 'brands'),
+      
+      Update: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Update(idGenerator, storeIdGenerator, 'brands'),
+      
+      Delete: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Delete(idGenerator, storeIdGenerator, 'brands'),
+      
+      Bulk: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Bulk(storeIdGenerator, 'brands'),
+    },
+
+    /**
+     * Category-specific eviction patterns
+     */
+    Category: {
+      Create: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Create(storeIdGenerator, 'categories'),
+      
+      Update: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Update(idGenerator, storeIdGenerator, 'categories'),
+      
+      Delete: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Delete(idGenerator, storeIdGenerator, 'categories'),
+      
+      Bulk: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Bulk(storeIdGenerator, 'categories'),
+    },
+
+    /**
+     * Provider-specific eviction patterns
+     */
+    Provider: {
+      Create: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Create(storeIdGenerator, 'providers'),
+      
+      Update: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Update(idGenerator, storeIdGenerator, 'providers'),
+      
+      Delete: (idGenerator: (...args: any[]) => string | number, storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Delete(idGenerator, storeIdGenerator, 'providers'),
+      
+      Bulk: (storeIdGenerator: (...args: any[]) => string): CacheEvictOptions => 
+        EvictionPatterns.CRUD.Bulk(storeIdGenerator, 'providers'),
+    },
+  },
 }; 

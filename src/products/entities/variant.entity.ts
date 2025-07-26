@@ -3,9 +3,9 @@ import { BaseEntity } from '../../common/entities/base.entity';
 import { Store } from '../../stores/entities/store.entity';
 import { Tax } from './tax.entity';
 import { Provider } from '../../providers/entities/provider.entity';
-import { Brand } from 'src/brands/entities/brand.entity';
-import { Category } from 'src/categories/entities/category.entity';
-import { Unit } from 'src/unit/entities/unit.entity';
+import { Brand } from '../../brands/entities/brand.entity';
+import { Category } from '../../categories/entities/category.entity';
+import { Unit } from '../../unit/entities/unit.entity';
 @Entity('variants')
 export class Variant extends BaseEntity {
   @Column()

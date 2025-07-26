@@ -5,11 +5,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Variant } from '../entities/variant.entity';
 import { BaseSearchService } from '../../common/services/base-search.service';
-import { Cacheable, CacheEvict, CachePatterns } from '../../cache/decorators';
 
 @Injectable()
 export class VariantSearchService extends BaseSearchService<Variant> implements OnModuleInit {
-  protected readonly index = 'variants';
+  protected readonly indexName = 'variants';
   protected readonly searchFields = [
     'name^3',
     'barcode',
@@ -26,7 +25,7 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     @InjectRepository(Variant)
     private readonly variantRepository: Repository<Variant>
   ) {
-    super(esService);
+    super();
   }
 
   protected async flattenEntity(variant: Variant): Promise<any> {
@@ -97,33 +96,68 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     };
   }
 
+  // --- Aliased/Implemented Generic Methods ---
+
   /**
-   * Index variant with cache invalidation
-   * Clears search caches when variant is indexed
+   * Index (or update) a variant in Elasticsearch
    */
-  @CacheEvict({
-    patternGenerator: (variant) => `search:variants:*`,
-  })
+  async index(variant: Variant) {
+    return this.indexVariant(variant);
+  }
+
+  /**
+   * Search for variants by store and query/filter
+   */
+  async search(storeId: string, query: any) {
+    // Ensure storeId is included in filters
+    const filters = { ...query, storeId };
+    return this.searchVariants(query.q || '', filters);
+  }
+
+  /**
+   * Find a single variant by store and ID
+   */
+  async findById(storeId: string, id: string) {
+    // Optionally, you can add a storeId filter for extra safety
+    return super.findById(storeId, id);
+  }
+
+  /**
+   * Update a variant in Elasticsearch
+   */
+  async update(variant: Variant) {
+    return this.indexVariant(variant);
+  }
+
+  /**
+   * Remove a variant from Elasticsearch by store and ID
+   */
+  async remove(storeId: string, id: string) {
+    return this.removeVariant(id);
+  }
+
+  // --- Existing Entity-Specific Methods (reindex helpers, etc.) ---
+
+  /**
+   * Index variant in Elasticsearch
+   */
   async indexVariant(variant: Variant) {
     const result = await this.indexEntity(variant);
     
     // Refresh the index to make changes immediately visible
     try {
-      await this.esService.indices.refresh({ index: this.index });
-      console.log(`Refreshed index ${this.index} after indexing variant ${variant.id}`);
+      await this.esService.indices.refresh({ index: this.indexName });
+      console.log(`Refreshed index ${this.indexName} after indexing variant ${variant.id}`);
     } catch (error) {
-      console.error(`Failed to refresh index ${this.index}:`, error);
+      console.error(`Failed to refresh index ${this.indexName}:`, error);
     }
     
     return result;
   }
 
   /**
-   * Remove variant with cache invalidation
+   * Remove variant from Elasticsearch
    */
-  @CacheEvict({
-    patternGenerator: (id) => `search:variants:*`,
-  })
   async removeVariant(id: string) {
     return this.removeEntity(id);
   }
@@ -131,9 +165,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
   /**
    * Reindex variants by store - required by BaseSearchService
    */
-  @CacheEvict({
-    patternGenerator: (storeId) => `search:variants:*`,
-  })
   async reindexByStore(storeId: string): Promise<void> {
     const variants = await this.variantRepository.find({
       where: { storeId },
@@ -150,9 +181,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
   }
 
   // Re-index variants when related entities are updated
-  @CacheEvict({
-    patternGenerator: (storeId) => `search:variants:*`,
-  })
   async reindexVariantsByStore(storeId: string) {
     const variants = await this.variantRepository.find({
       where: { storeId },
@@ -164,9 +192,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     }
   }
 
-  @CacheEvict({
-    patternGenerator: (brandId) => `search:variants:*`,
-  })
   async reindexVariantsByBrand(brandId: string) {
     const variants = await this.variantRepository.find({
       where: { brandId },
@@ -178,9 +203,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     }
   }
 
-  @CacheEvict({
-    patternGenerator: (categoryId) => `search:variants:*`,
-  })
   async reindexVariantsByCategory(categoryId: string) {
     const variants = await this.variantRepository.find({
       where: { categoryId },
@@ -192,9 +214,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     }
   }
 
-  @CacheEvict({
-    patternGenerator: (providerId) => `search:variants:*`,
-  })
   async reindexVariantsByProvider(providerId: string) {
     const variants = await this.variantRepository.find({
       where: { providerId },
@@ -206,9 +225,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     }
   }
 
-  @CacheEvict({
-    patternGenerator: (unitId) => `search:variants:*`,
-  })
   async reindexVariantsByUnit(unitId: string) {
     const variants = await this.variantRepository.find({
       where: { unitId },
@@ -220,9 +236,6 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     }
   }
 
-  @CacheEvict({
-    patternGenerator: (taxId) => `search:variants:*`,
-  })
   async reindexVariantsByTax(taxId: string) {
     const variants = await this.variantRepository
       .createQueryBuilder('variant')
@@ -412,7 +425,7 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
         };
   
     const response = await this.esService.search({
-      index: this.index,
+      index: this.indexName,
       from,
       size: Number(limit),
       query: queryBody,
@@ -423,7 +436,7 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
     });
 
     console.log('Elasticsearch query sent:', JSON.stringify({
-      index: this.index,
+      index: this.indexName,
       from,
       size: Number(limit),
       query: queryBody,
@@ -462,7 +475,7 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
   async debugIndexedData(storeId: string): Promise<any> {
     try {
       const response = await this.esService.search({
-        index: this.index,
+        index: this.indexName,
         body: {
           query: {
             term: { 'storeId.keyword': storeId }
@@ -496,10 +509,10 @@ export class VariantSearchService extends BaseSearchService<Variant> implements 
    */
   async refreshIndex(): Promise<void> {
     try {
-      await this.esService.indices.refresh({ index: this.index });
-      console.log(`Refreshed index ${this.index}`);
+      await this.esService.indices.refresh({ index: this.indexName });
+      console.log(`Refreshed index ${this.indexName}`);
     } catch (error) {
-      console.error(`Failed to refresh index ${this.index}:`, error);
+      console.error(`Failed to refresh index ${this.indexName}:`, error);
       throw error;
     }
   }

@@ -103,7 +103,8 @@ export class CacheInterceptor implements NestInterceptor {
 
     // Use custom key generator if provided
     if (metadata.keyGenerator) {
-      return metadata.keyGenerator(...args);
+      // For controller methods, pass request as first argument
+      return request ? metadata.keyGenerator(request, ...args) : metadata.keyGenerator(...args);
     }
 
     // Default key generation

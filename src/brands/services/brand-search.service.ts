@@ -9,10 +9,11 @@ import { QueryDslOperator, QueryDslTextQueryType } from '@elastic/elasticsearch/
 
 @Injectable()
 export class BrandSearchService extends BaseSearchService<Brand> implements OnModuleInit {
-  protected readonly index = 'brands';
+  protected readonly indexName = 'brands';
   protected readonly searchFields = [
     'name',
     'description',
+    'website',
     'store.name'
   ];
 
@@ -21,7 +22,7 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
     @InjectRepository(Brand)
     private readonly brandRepository: Repository<Brand>,
   ) {
-    super(esService);
+    super();
   }
 
   async onModuleInit() {
@@ -32,6 +33,139 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
       console.log('Brand search service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize brand search service:', error);
+      // Don't throw error to prevent server crash, just log it
+      console.log('Brand search service will be available but may need manual reindexing');
+    }
+  }
+
+  public async createIndexIfNotExists() {
+    try {
+      const indexExists = await this.esService.indices.exists({
+        index: this.indexName
+      });
+
+      if (!indexExists) {
+        await this.esService.indices.create({
+          index: this.indexName,
+          body: {
+            settings: {
+              analysis: {
+                filter: {
+                  autocomplete_filter: {
+                    type: 'edge_ngram',
+                    min_gram: 1,
+                    max_gram: 20
+                  }
+                },
+                analyzer: {
+                  autocomplete: {
+                    type: 'custom',
+                    tokenizer: 'standard',
+                    filter: [
+                      'lowercase',
+                      'autocomplete_filter'
+                    ]
+                  }
+                }
+              }
+            },
+            mappings: {
+              properties: {
+                id: {
+                  type: 'long'
+                },
+                name: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                image: {
+                  type: 'text',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                website: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                description: {
+                  type: 'text',
+                  analyzer: 'autocomplete',
+                  search_analyzer: 'standard',
+                  fields: {
+                    keyword: {
+                      type: 'keyword',
+                      ignore_above: 256
+                    }
+                  }
+                },
+                status: {
+                  type: 'keyword'
+                },
+                productsCount: {
+                  type: 'integer'
+                },
+                storeId: {
+                  type: 'keyword'
+                },
+                store: {
+                  properties: {
+                    id: {
+                      type: 'keyword'
+                    },
+                    name: {
+                      type: 'text',
+                      analyzer: 'autocomplete',
+                      search_analyzer: 'standard',
+                      fields: {
+                        keyword: {
+                          type: 'keyword',
+                          ignore_above: 256
+                        }
+                      }
+                    },
+                    logo: {
+                      type: 'text'
+                    },
+                    url: {
+                      type: 'text'
+                    },
+                    status: {
+                      type: 'keyword'
+                    }
+                  }
+                },
+                createdAt: {
+                  type: 'date'
+                },
+                updatedAt: {
+                  type: 'date'
+                }
+              }
+            }
+          }
+        });
+        console.log(`Created index ${this.indexName} with proper mapping`);
+      }
+    } catch (error) {
+      console.error(`Failed to create index ${this.indexName}:`, error);
       throw error;
     }
   }
@@ -39,34 +173,37 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
   private async reindexAll() {
     try {
       console.log('Starting reindex of all brands...');
+      const totalBrands = await this.brandRepository.count();
+      console.log(`Total brands in database: ${totalBrands}`);
+      
+      if (totalBrands === 0) {
+        console.log('No brands found in database, skipping reindex');
+        return;
+      }
+      
       const brands = await this.brandRepository.find({
         relations: ['store'],
       });
       
-      if (brands.length === 0) {
-        console.log('No brands found to index');
-        return;
-      }
-
       console.log(`Found ${brands.length} brands to index`);
       
       // Delete existing index if it exists
       try {
-        await this.esService.indices.delete({ index: this.index });
-        console.log(`Deleted existing index ${this.index}`);
+        await this.esService.indices.delete({ index: this.indexName });
+        console.log(`Deleted existing index ${this.indexName}`);
       } catch (error) {
         // Ignore error if index doesn't exist
       }
 
       // Create fresh index
       await this.createIndexIfNotExists();
-      console.log(`Created fresh index ${this.index}`);
+      console.log(`Created fresh index ${this.indexName}`);
 
       // Index all brands
       const operations: any[] = [];
       for (const brand of brands) {
         const flattenedEntity = await this.flattenEntity(brand);
-        operations.push({ index: { _index: this.index, _id: brand.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: brand.id.toString() } });
         operations.push(flattenedEntity);
       }
 
@@ -112,6 +249,52 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
       createdAt: brand.createdAt,
       updatedAt: brand.updatedAt,
     };
+  }
+
+  async indexEntity(entity: Brand): Promise<void> {
+    try {
+      // Load relations if not already loaded
+      let brandWithRelations = entity;
+      if (!entity.store) {
+        const foundBrand = await this.brandRepository.findOne({
+          where: { id: entity.id },
+          relations: ['store'],
+        });
+        if (!foundBrand) {
+          console.warn(`Brand ${entity.id} not found for indexing`);
+          return;
+        }
+        brandWithRelations = foundBrand;
+      }
+
+      const flattenedEntity = await this.flattenEntity(brandWithRelations);
+      
+      await this.esService.index({
+        index: this.indexName,
+        id: entity.id.toString(),
+        body: flattenedEntity,
+        refresh: true,
+      });
+      
+      console.log(`Successfully indexed brand ${entity.id}`);
+    } catch (error) {
+      console.error(`Failed to index brand ${entity.id}:`, error);
+      throw error;
+    }
+  }
+
+  async removeEntity(id: string | number): Promise<void> {
+    try {
+      await this.esService.delete({
+        index: this.indexName,
+        id: id.toString(),
+        refresh: true,
+      });
+      console.log(`Successfully removed brand ${id} from index`);
+    } catch (error) {
+      console.error(`Failed to remove brand ${id} from index:`, error);
+      throw error;
+    }
   }
 
   @Cacheable({
@@ -181,6 +364,7 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
               query,
               fields: [
                 'description^1',
+                'website^1',
                 'store.name^1'
               ],
               type: 'best_fields' as QueryDslTextQueryType,
@@ -203,92 +387,103 @@ export class BrandSearchService extends BaseSearchService<Brand> implements OnMo
         })
       }
     };
-  
-    console.log('Search query:', JSON.stringify(queryBody, null, 2));
-  
+
     const response = await this.esService.search({
-      index: this.index,
-      from,
-      size: Number(limit),
-      query: queryBody,
-      sort: [
-        { _score: { order: 'desc' } },
-        { 'name.keyword': { order: 'asc' } }
-      ]
+      index: this.indexName,
+      body: {
+        query: queryBody,
+        from,
+        size: limit,
+        sort: [
+          { _score: { order: 'desc' } },
+          { createdAt: { order: 'desc' } }
+        ]
+      }
     });
 
-    const total = typeof response.hits.total === 'number' 
-      ? response.hits.total 
-      : response.hits.total?.value || 0;
-
-    const totalPages = Math.ceil(total / Number(limit));
+    const hits = response.hits.hits;
+    const total = response.hits.total as any;
 
     return {
-      data: response.hits.hits.map((hit: any) => hit._source),
+      data: hits.map((hit: any) => hit._source),
       pagination: {
-        total,
+        total: typeof total === 'number' ? total : total.value,
         page: Number(page),
         limit: Number(limit),
-        totalPages,
-        hasNextPage: Number(page) < totalPages,
-        hasPreviousPage: Number(page) > 1,
-      },
+        totalPages: Math.ceil((typeof total === 'number' ? total : total.value) / Number(limit)),
+        hasNextPage: Number(page) * Number(limit) < (typeof total === 'number' ? total : total.value),
+        hasPreviousPage: Number(page) > 1
+      }
     };
   }
 
-  @CacheEvict({
-    patternGenerator: (storeId) => `search:brands:*`,
-  })
   async reindexByStore(storeId: string): Promise<void> {
     try {
-      console.log(`Starting reindex for store ${storeId}...`);
+      console.log(`Starting reindex of brands for store ${storeId}...`);
+      
       const brands = await this.brandRepository.find({
         where: { storeId },
         relations: ['store'],
       });
-
-      if (brands.length === 0) {
-        console.log(`No brands found for store ${storeId}`);
-        return;
-      }
-
-      console.log(`Found ${brands.length} brands for store ${storeId}`);
-
+      
+      console.log(`Found ${brands.length} brands to reindex for store ${storeId}`);
+      
       // Delete existing documents for this store
       await this.esService.deleteByQuery({
-        index: this.index,
+        index: this.indexName,
         body: {
           query: {
             term: { storeId }
           }
-        }
+        },
+        refresh: true
       });
-
-      // Index new documents
+      
+      // Index all brands for this store
       const operations: any[] = [];
       for (const brand of brands) {
         const flattenedEntity = await this.flattenEntity(brand);
-        operations.push({ index: { _index: this.index, _id: brand.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: brand.id.toString() } });
         operations.push(flattenedEntity);
       }
 
-      const response = await this.esService.bulk({ 
-        body: operations,
-        refresh: true
-      });
+      if (operations.length > 0) {
+        const response = await this.esService.bulk({ 
+          body: operations,
+          refresh: true
+        });
 
-      if (response.errors) {
-        const errors = response.items
-          .filter((item: any) => item.index?.error)
-          .map((item: any) => item.index.error);
-        console.error('Bulk indexing errors:', errors);
-        throw new Error(`Failed to index brands for store ${storeId}`);
+        if (response.errors) {
+          const errors = response.items
+            .filter((item: any) => item.index?.error)
+            .map((item: any) => item.index.error);
+          console.error('Bulk reindexing errors:', errors);
+          throw new Error('Failed to reindex brands for store');
+        }
       }
-
-      console.log(`Successfully indexed ${brands.length} brands for store ${storeId}`);
+      
+      console.log(`Successfully reindexed ${brands.length} brands for store ${storeId}`);
     } catch (error) {
       console.error(`Failed to reindex brands for store ${storeId}:`, error);
       throw error;
+    }
+  }
+
+  async debugIndex(): Promise<void> {
+    try {
+      const response = await this.esService.search({
+        index: this.indexName,
+        body: {
+          query: { match_all: {} },
+          size: 10
+        }
+      });
+      
+      console.log('Index debug info:');
+      console.log('Total documents:', response.hits.total);
+      console.log('Sample documents:', response.hits.hits.map((hit: any) => hit._source));
+    } catch (error) {
+      console.error('Failed to debug index:', error);
     }
   }
 } 

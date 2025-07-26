@@ -24,7 +24,7 @@ import { Tax } from './products/entities/tax.entity';
 import { Order } from './orders/entities/order.entity';
 import { OrderItem } from './orders/entities/order-item.entity';
 import { Unit } from './unit/entities/unit.entity';
-import { SearchModule } from './elasticsearch/elasticsearch.module';
+// import { SearchModule } from './elasticsearch/elasticsearch.module';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/config.service';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -109,19 +109,19 @@ import { CacheEvictInterceptor } from './cache/interceptors/cache-evict.intercep
     UnitModule,
     ProductsModule,
     OrdersModule,
-    SearchModule,
+    // SearchModule, // Temporarily disabled due to Elasticsearch configuration issues
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // Global Cache Interceptors
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
-    },
+    // Global Cache Interceptors - CacheEvictInterceptor must come first
     {
       provide: APP_INTERCEPTOR,
       useClass: CacheEvictInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheInterceptor,
     },
   ],
 })

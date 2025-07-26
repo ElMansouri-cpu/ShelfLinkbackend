@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Store } from '../../stores/entities/store.entity';
+import { Variant } from '../../products/entities/variant.entity';
 
 @Entity('brands')
 export class Brand {
@@ -30,6 +31,9 @@ export class Brand {
   @ManyToOne(() => Store, store => store.brands)
   @JoinColumn({ name: 'storeId' })
   store: Store;
+
+  @OneToMany(() => Variant, variant => variant.brand)
+  variants: Variant[];
 
   @CreateDateColumn()
   createdAt: Date;

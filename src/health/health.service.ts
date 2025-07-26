@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { AppConfigService } from '../config/config.service';
@@ -39,9 +39,9 @@ export interface CachePerformanceHealth {
 export class HealthService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly elasticsearchService: ElasticsearchService,
     private readonly configService: AppConfigService,
     private readonly cacheService: CacheService,
+    @Optional() private readonly elasticsearchService?: ElasticsearchService,
   ) {}
 
   async checkHealth(includePerformance = false): Promise<HealthStatus> {
@@ -57,11 +57,12 @@ export class HealthService {
     const elasticsearchHealth = elasticsearch.status === 'fulfilled' ? elasticsearch.value : { status: 'unhealthy' as const, message: 'Check failed' };
     const redisHealth = redis.status === 'fulfilled' ? redis.value : { status: 'unhealthy' as const, message: 'Check failed' };
 
-    const allHealthy = databaseHealth.status === 'healthy' && elasticsearchHealth.status === 'healthy' && redisHealth.status === 'healthy';
-    const someUnhealthy = databaseHealth.status === 'unhealthy' || elasticsearchHealth.status === 'unhealthy' || redisHealth.status === 'unhealthy';
+    // Consider system healthy if database and redis are healthy, even if elasticsearch is unavailable
+    const coreServicesHealthy = databaseHealth.status === 'healthy' && redisHealth.status === 'healthy';
+    const someUnhealthy = databaseHealth.status === 'unhealthy' || redisHealth.status === 'unhealthy';
 
     const healthStatus: HealthStatus = {
-      status: allHealthy ? 'healthy' : someUnhealthy ? 'degraded' : 'unhealthy',
+      status: coreServicesHealthy ? 'healthy' : someUnhealthy ? 'degraded' : 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       version: process.env.npm_package_version || '0.0.1',
@@ -116,6 +117,15 @@ export class HealthService {
 
   async checkElasticsearch(): Promise<ComponentHealth> {
     const startTime = Date.now();
+    
+    if (!this.elasticsearchService) {
+      return {
+        status: 'unhealthy',
+        responseTime: Date.now() - startTime,
+        message: 'Elasticsearch service not available',
+        details: 'Elasticsearch is disabled in this environment',
+      };
+    }
     
     try {
       await this.elasticsearchService.ping();

@@ -1,6 +1,9 @@
 import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateProviderDto {
+  @IsOptional()
+  id?: any;
+
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -10,12 +13,12 @@ export class CreateProviderDto {
   phoneNumber: string;
 
   @IsNumber()
-  @IsNotEmpty()
-  latitude: number;
+  @IsOptional()
+  latitude?: number;
 
   @IsNumber()
-  @IsNotEmpty()
-  longitude: number;
+  @IsOptional()
+  longitude?: number;
 
   @IsEmail()
   @IsNotEmpty()
@@ -24,6 +27,20 @@ export class CreateProviderDto {
   @IsString()
   @IsOptional()
   image?: string;
+
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsOptional()
+  contactInfo?: any;
+
+  @IsOptional()
+  userId?: string;
 
   @IsUUID()
   @IsNotEmpty()

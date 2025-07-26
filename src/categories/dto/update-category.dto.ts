@@ -1,6 +1,9 @@
 import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateCategoryDto {
+  @IsOptional()
+  id?: any;
+
   @IsString()
   @IsOptional()
   name?: string;
@@ -16,6 +19,10 @@ export class UpdateCategoryDto {
   @IsEnum(['active', 'inactive'])
   @IsOptional()
   status?: 'active' | 'inactive';
+
+  @IsNumber()
+  @IsOptional()
+  productsCount?: number;
 
   @IsNumber()
   @IsOptional()

@@ -1,106 +1,160 @@
-import { Controller, Get, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
-import { StoreCrudController } from 'src/common/controllers/store-crud.controller';
-import { Unit } from './entities/unit.entity';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe, Put, Query } from '@nestjs/common';
+import { UnitsService } from './unit.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
-import { UnitsService } from './unit.service';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard';
-import { UnitSearchService } from './services/unit-search.service';
-import { Cacheable } from '../cache/decorators';
+import { QueryDto } from '../common/dto/query.dto';
 
 @Controller('stores/:storeId/units')
 @UseGuards(SupabaseAuthGuard)
-export class UnitController extends StoreCrudController<Unit, CreateUnitDto, UpdateUnitDto> {
+export class UnitController {
   constructor(
     private readonly unitsService: UnitsService,
-    private readonly unitSearchService: UnitSearchService
+  ) {}
+
+  // --- Basic CRUD endpoints ---
+
+  @Post()
+  create(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Body() createUnitDto: CreateUnitDto,
   ) {
-    super(unitsService);
+    return this.unitsService.create(storeId, createUnitDto);
   }
 
+  @Get()
+  findAll(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query() query: any,
+  ) {
+    return this.unitsService.findAll(storeId, query);
+  }
+
+  @Get(':id')
+  findOne(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('id') id: string,
+  ) {
+    return this.unitsService.findOne(storeId, id);
+  }
+
+  @Put(':id')
+  update(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('id') id: string,
+    @Body() updateUnitDto: UpdateUnitDto,
+  ) {
+    return this.unitsService.update(storeId, id, updateUnitDto);
+  }
+
+  @Delete(':id')
+  remove(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('id') id: string,
+  ) {
+    return this.unitsService.delete(storeId, id);
+  }
+
+  // --- Entity-specific endpoints ---
+
   @Get('elasticsearch')
-  @Cacheable({
-    ttl: 300,
-    keyGenerator: (request: any) => {
-      const storeId = request.params.storeId;
-      const query = request.query;
-      
-      const keyParts = [
-        `store=${storeId}`,
-        `q=${query.q || ''}`,
-        `page=${query.page || '1'}`,
-        `limit=${query.limit || '20'}`
-      ];
-
-      const filters = Object.entries(query)
-        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key}=${value}`);
-
-      if (filters.length > 0) {
-        keyParts.push(`filters=${filters.join('|')}`);
-      }
-
-      return `search:units:${keyParts.join(':')}`;
-    }
-  })
   async elasticSearch(
-    @Param('storeId', new ParseUUIDPipe()) storeId: string,
+    @Param('storeId', ParseUUIDPipe) storeId: string,
     @Query('q') query: string = '',
     @Query() filters: any,
   ) {
-    const { q, ...cleanFilters } = filters;
-    return this.unitSearchService.searchEntities(query, { ...cleanFilters, storeId });
+    // Elasticsearch is disabled, return empty results
+    return { data: [], pagination: { total: 0, page: 1, limit: 50, totalPages: 0 } };
   }
 
-  @Get('fetch')
-  @Cacheable({
-    ttl: 300,
-    keyGenerator: (request: any) => {
-      const storeId = request.params.storeId;
-      const query = request.query;
-      
-      const keyParts = [
-        `store=${storeId}`,
-        `q=${query.q || ''}`,
-        `page=${query.page || '1'}`,
-        `limit=${query.limit || '20'}`
-      ];
+  @Post('elasticsearch/reindex')
+  async reindexStore(@Param('storeId', ParseUUIDPipe) storeId: string) {
+    // Elasticsearch is disabled, return success message
+    return { message: 'Elasticsearch is disabled in this environment' };
+  }
 
-      const filters = Object.entries(query)
-        .filter(([key]) => !['q', 'page', 'limit'].includes(key))
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key}=${value}`);
-
-      if (filters.length > 0) {
-        keyParts.push(`filters=${filters.join('|')}`);
-      }
-
-      return `search:units:${keyParts.join(':')}`;
-    }
-  })
-  async fetch(
-    @Param('storeId') storeId: string,
-    @Query('q') q: string,
-    @Query() filters: Record<string, string>
+  @Post('query')
+  queryUnits(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Body() queryDto: QueryDto,
   ) {
-    return this.unitSearchService.searchEntities(q, { ...filters, storeId });
+    return this.unitsService.query(storeId, queryDto, storeId);
   }
+
+  @Get('search')
+  searchUnits(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Query('q') searchTerm: string,
+  ) {
+    return this.unitsService.searchUnits(storeId, searchTerm);
+  }
+
+  @Get('statistics')
+  getUnitStatistics(@Param('storeId', ParseUUIDPipe) storeId: string) {
+    return this.unitsService.getUnitStatistics(storeId);
+  }
+
+  @Get('active')
+  getActiveUnits(@Param('storeId', ParseUUIDPipe) storeId: string) {
+    return this.unitsService.getActiveUnits(storeId);
+  }
+
+  @Get('by-name/:name')
+  getUnitByName(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('name') name: string,
+  ) {
+    return this.unitsService.getUnitByName(storeId, name);
+  }
+
+  @Patch(':id/toggle-active')
+  toggleActive(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('id') id: string,
+  ) {
+    return this.unitsService.toggleActive(storeId, id);
+  }
+
+  @Post('bulk')
+  bulkCreate(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Body() units: CreateUnitDto[],
+  ) {
+    return this.unitsService.bulkCreate(storeId, units);
+  }
+
+  @Delete('orphaned/:id')
+  async removeOrphanedUnit(
+    @Param('storeId', ParseUUIDPipe) storeId: string,
+    @Param('id') id: string,
+  ) {
+    // Check if unit has dependencies
+    const dependencies = await this.unitsService.checkAssociations(storeId, id);
+    
+    if (dependencies) {
+      throw new Error(`Cannot delete unit. It has associated variants.`);
+    }
+    
+    return this.unitsService.delete(storeId, id);
+  }
+
+  // --- Debug endpoints (for development) ---
 
   @Get('debug/index')
   async debugIndex() {
-    return this.unitSearchService.debugIndex();
+    // Elasticsearch is disabled
+    return { message: 'Elasticsearch is disabled in this environment' };
   }
 
   @Get('debug/reindex')
-  async debugReindex(@Param('storeId') storeId: string) {
-    await this.unitSearchService.reindexByStore(storeId);
-    return { message: 'Reindex completed' };
+  async debugReindex(@Param('storeId', ParseUUIDPipe) storeId: string) {
+    // Elasticsearch is disabled
+    return { message: 'Elasticsearch is disabled in this environment' };
   }
 
-  @Get('debug/store/:storeId')
-  async debugStoreUnits(@Param('storeId') storeId: string) {
-    await this.unitSearchService.debugCategoriesByStore(storeId);
-    return { message: 'Debug completed, check server logs' };
+  @Get('debug/store-units')
+  async debugStoreUnits(@Param('storeId', ParseUUIDPipe) storeId: string) {
+    // Elasticsearch is disabled
+    return { message: 'Elasticsearch is disabled in this environment' };
   }
 }

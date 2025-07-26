@@ -8,7 +8,7 @@ import { CacheEvict, Cacheable } from '../../cache/decorators';
 
 @Injectable()
 export class ProviderSearchService extends BaseSearchService<Provider> implements OnModuleInit {
-  protected readonly index = 'providers';
+  protected readonly indexName = 'providers';
   protected readonly searchFields = ['name', 'email', 'phoneNumber', 'address'];
 
   constructor(
@@ -16,7 +16,7 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
     @InjectRepository(Provider)
     private readonly providerRepository: Repository<Provider>,
   ) {
-    super(esService);
+    super();
   }
 
   async onModuleInit() {
@@ -31,12 +31,12 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
     }
   }
 
-  protected async createIndexIfNotExists() {
+  public async createIndexIfNotExists() {
     try {
-      const indexExists = await this.esService.indices.exists({ index: this.index });
+      const indexExists = await this.esService.indices.exists({ index: this.indexName });
       if (!indexExists) {
         await this.esService.indices.create({
-          index: this.index,
+          index: this.indexName,
           body: {
             settings: {
               analysis: {
@@ -94,10 +94,10 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
             }
           }
         });
-        console.log(`Created index ${this.index} with proper mapping`);
+        console.log(`Created index ${this.indexName} with proper mapping`);
       }
     } catch (error) {
-      console.error(`Failed to create index ${this.index}:`, error);
+      console.error(`Failed to create index ${this.indexName}:`, error);
       throw error;
     }
   }
@@ -117,19 +117,19 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
       console.log(`Found ${providers.length} providers to index`);
       
       try {
-        await this.esService.indices.delete({ index: this.index });
-        console.log(`Deleted existing index ${this.index}`);
+        await this.esService.indices.delete({ index: this.indexName });
+        console.log(`Deleted existing index ${this.indexName}`);
       } catch (error) {
         // Ignore error if index doesn't exist
       }
 
       await this.createIndexIfNotExists();
-      console.log(`Created fresh index ${this.index}`);
+      console.log(`Created fresh index ${this.indexName}`);
 
       const operations: any[] = [];
       for (const provider of providers) {
         const flattenedEntity = await this.flattenEntity(provider);
-        operations.push({ index: { _index: this.index, _id: provider.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: provider.id.toString() } });
         operations.push(flattenedEntity);
       }
 
@@ -182,6 +182,38 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
     };
+  }
+
+  async indexEntity(entity: Provider): Promise<void> {
+    try {
+      const flattenedEntity = await this.flattenEntity(entity);
+      
+      await this.esService.index({
+        index: this.indexName,
+        id: entity.id.toString(),
+        body: flattenedEntity,
+        refresh: true,
+      });
+      
+      console.log(`Successfully indexed provider ${entity.id}`);
+    } catch (error) {
+      console.error(`Failed to index provider ${entity.id}:`, error);
+      throw error;
+    }
+  }
+
+  async removeEntity(id: string | number): Promise<void> {
+    try {
+      await this.esService.delete({
+        index: this.indexName,
+        id: id.toString(),
+        refresh: true,
+      });
+      console.log(`Successfully removed provider ${id} from index`);
+    } catch (error) {
+      console.error(`Failed to remove provider ${id} from index:`, error);
+      throw error;
+    }
   }
 
   @Cacheable({
@@ -238,7 +270,7 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
       console.log('Search query:', JSON.stringify(queryBody, null, 2));
     
       const response = await this.esService.search({
-        index: this.index,
+        index: this.indexName,
         from,
         size: Number(limit),
         query: queryBody,
@@ -272,15 +304,15 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
 
   async debugIndex() {
     try {
-      const indexExists = await this.esService.indices.exists({ index: this.index });
-      console.log(`Index ${this.index} exists:`, indexExists);
+      const indexExists = await this.esService.indices.exists({ index: this.indexName });
+      console.log(`Index ${this.indexName} exists:`, indexExists);
 
       if (indexExists) {
-        const count = await this.esService.count({ index: this.index });
+        const count = await this.esService.count({ index: this.indexName });
         console.log(`Document count:`, count);
 
         const sample = await this.esService.search({
-          index: this.index,
+          index: this.indexName,
           size: 5,
           query: { match_all: {} }
         });
@@ -307,14 +339,14 @@ export class ProviderSearchService extends BaseSearchService<Provider> implement
       console.log(`Found ${providers.length} providers for store ${storeId}`);
 
       await this.esService.deleteByQuery({
-        index: this.index,
+        index: this.indexName,
         body: { query: { term: { storeId } } }
       });
 
       const operations: any[] = [];
       for (const provider of providers) {
         const flattenedEntity = await this.flattenEntity(provider);
-        operations.push({ index: { _index: this.index, _id: provider.id.toString() } });
+        operations.push({ index: { _index: this.indexName, _id: provider.id.toString() } });
         operations.push(flattenedEntity);
       }
 

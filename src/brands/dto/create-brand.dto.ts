@@ -1,26 +1,49 @@
-import { IsString, IsOptional, IsUUID, IsUrl } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsBoolean } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBrandDto {
+  @ApiProperty({
+    description: 'The name of the brand',
+    example: 'Nike',
+    minLength: 1,
+    maxLength: 100,
+  })
   @IsString()
   name: string;
 
-  @IsOptional()
-  @IsString()
-  image?: string;
-
-  @IsOptional()
-  @IsUrl()
-  @IsString()
-  website?: string;
-
+  @ApiPropertyOptional({
+    description: 'A brief description of the brand',
+    example: 'Just Do It - Leading sports and lifestyle brand',
+    maxLength: 500,
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({
+    description: 'URL to the brand logo image',
+    example: 'https://example.com/nike-logo.png',
+    format: 'uri',
+  })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsUrl()
+  logo?: string;
 
-  @IsUUID()
-  storeId: string;
+  @ApiPropertyOptional({
+    description: 'Official website URL of the brand',
+    example: 'https://www.nike.com',
+    format: 'uri',
+  })
+  @IsOptional()
+  @IsUrl()
+  website?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether the brand is active and available for use',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 } 
